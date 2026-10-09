@@ -1,98 +1,202 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import {
+  StyleSheet,
+  View,
+  Text,
+  TouchableOpacity,
+  useColorScheme,
+  Platform,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
+import { Ionicons } from '@expo/vector-icons';
+import { Colors } from '@/constants/theme';
+import { DetectionHUD } from '@/components/asl/DetectionHUD';
+import { SentenceBuilder } from '@/components/asl/SentenceBuilder';
+import { SpeechService } from '@/services/speechService';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+export default function CameraTranslatorScreen() {
+  const scheme = useColorScheme();
+  const isDark = scheme === 'dark';
+  const colors = Colors[isDark ? 'dark' : 'light'];
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
+  const [facing, setFacing] = useState<CameraType>('front');
+  const [permission, requestPermission] = useCameraPermissions();
+  const [hapticEnabled, setHapticEnabled] = useState(true);
+  const [mode, setMode] = useState<'alphabet' | 'numbers' | 'common'>('alphabet');
+  
+  // Real-time detection state
+  const [detectedSign, setDetectedSign] = useState<string | null>('A');
+  const [confidence, setConfidence] = useState<number>(0.96);
+  
+  // Accumulated sentence state
+  const [sentence, setSentence] = useState<string>('HELLO');
+
+  const toggleCameraFacing = () => {
+    setFacing((current) => (current === 'back' ? 'front' : 'back'));
+  };
+
+  const toggleMode = () => {
+    setMode((current) => {
+      if (current === 'alphabet') return 'numbers';
+      if (current === 'numbers') return 'common';
+      return 'alphabet';
+    });
+  };
+
+  const toggleHaptic = () => {
+    setHapticEnabled((prev) => !prev);
+  };
+
+  const handleAppendText = (char: string) => {
+    setSentence((prev) => prev + char);
+    if (hapticEnabled) {
+      SpeechService.triggerRecognitionHaptic();
+    }
+  };
+
+  const handleBackspace = () => {
+    setSentence((prev) => prev.slice(0, -1));
+  };
+
+  const handleClear = () => {
+    setSentence('');
+  };
+
+  const handleTestSign = (sign: string) => {
+    setDetectedSign(sign);
+    setConfidence(0.98);
+    setSentence((prev) => (prev ? `${prev} ${sign}` : sign));
+    if (hapticEnabled) {
+      SpeechService.triggerRecognitionHaptic();
+    }
+  };
+
+  if (!permission) {
+    // Camera permissions are still loading
     return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
+      <View style={[styles.centerContainer, { backgroundColor: colors.background }]}>
+        <Text style={{ color: colors.text }}>Initializing camera...</Text>
+      </View>
     );
   }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
-  return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
 
-export default function HomeScreen() {
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
+  if (!permission.granted) {
+    // Camera permissions are not granted yet
+    return (
+      <SafeAreaView
+        style={[styles.permissionContainer, { backgroundColor: colors.background }]}>
+        <View style={styles.permissionCard}>
+          <View style={[styles.permissionIconBadge, { backgroundColor: colors.primaryLight }]}>
+            <Ionicons name="camera" size={36} color={colors.primary} />
+          </View>
+          <Text style={[styles.permissionTitle, { color: colors.text }]}>
+            Camera Access Required
+          </Text>
+          <Text style={[styles.permissionSubtitle, { color: colors.textSecondary }]}>
+            SignBridge needs camera access to recognize your sign language gestures
+            in real time. All processing happens 100% on your device without an internet connection.
+          </Text>
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
+          <TouchableOpacity
+            style={[styles.permissionButton, { backgroundColor: colors.primary }]}
+            onPress={requestPermission}
+            activeOpacity={0.8}>
+            <Text style={styles.permissionButtonText}>Grant Camera Permission</Text>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
-    </ThemedView>
+    );
+  }
+
+  return (
+    <SafeAreaView
+      edges={['top', 'left', 'right']}
+      style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Camera View Area */}
+      <View style={styles.cameraWrapper}>
+        <CameraView style={styles.camera} facing={facing} />
+        <DetectionHUD
+          detectedSign={detectedSign}
+          confidence={confidence}
+          mode={mode}
+          onToggleMode={toggleMode}
+          onFlipCamera={toggleCameraFacing}
+          hapticEnabled={hapticEnabled}
+          onToggleHaptic={toggleHaptic}
+          isDark={isDark}
+        />
+      </View>
+
+      {/* Sentence Builder Bottom Dock */}
+      <SentenceBuilder
+        sentence={sentence}
+        onAppendText={handleAppendText}
+        onBackspace={handleBackspace}
+        onClear={handleClear}
+        isDark={isDark}
+        onTestSign={handleTestSign}
+      />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
   },
-  safeArea: {
+  centerContainer: {
     flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
-  },
-  heroSection: {
-    alignItems: 'center',
     justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
+    alignItems: 'center',
   },
-  title: {
+  permissionContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  permissionCard: {
+    alignItems: 'center',
+    maxWidth: 360,
+    gap: 16,
+  },
+  permissionIconBadge: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  permissionTitle: {
+    fontSize: 22,
+    fontWeight: '700',
     textAlign: 'center',
   },
-  code: {
-    textTransform: 'uppercase',
+  permissionSubtitle: {
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
   },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
+  permissionButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 14,
+    width: '100%',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  permissionButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  cameraWrapper: {
+    flex: 1,
+    overflow: 'hidden',
+    backgroundColor: '#000000',
+  },
+  camera: {
+    flex: 1,
   },
 });
