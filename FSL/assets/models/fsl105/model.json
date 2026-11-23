@@ -1,0 +1,86 @@
+{
+ "format": "signbridge-conv1d/1",
+ "input": [
+  32,
+  149
+ ],
+ "output": 105,
+ "layers": [
+  {
+   "type": "conv1d",
+   "kernel": 5,
+   "stride": 1,
+   "padLeft": 2,
+   "padRight": 2,
+   "inLength": 32,
+   "outLength": 32,
+   "relu": true,
+   "shapes": {
+    "w": [
+     5,
+     149,
+     64
+    ],
+    "b": [
+     64
+    ]
+   }
+  },
+  {
+   "type": "conv1d",
+   "kernel": 5,
+   "stride": 2,
+   "padLeft": 1,
+   "padRight": 2,
+   "inLength": 32,
+   "outLength": 16,
+   "relu": true,
+   "shapes": {
+    "w": [
+     5,
+     64,
+     128
+    ],
+    "b": [
+     128
+    ]
+   }
+  },
+  {
+   "type": "conv1d",
+   "kernel": 3,
+   "stride": 1,
+   "padLeft": 1,
+   "padRight": 1,
+   "inLength": 16,
+   "outLength": 16,
+   "relu": true,
+   "shapes": {
+    "w": [
+     3,
+     128,
+     128
+    ],
+    "b": [
+     128
+    ]
+   }
+  },
+  {
+   "type": "globalAvgPool"
+  },
+  {
+   "type": "dense",
+   "softmax": true,
+   "shapes": {
+    "w": [
+     128,
+     105
+    ],
+    "b": [
+     105
+    ]
+   }
+  }
+ ]
+}
