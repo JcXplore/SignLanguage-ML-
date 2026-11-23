@@ -79,7 +79,7 @@ test('noPose status for 1s sets hint moveBack, and a good frame clears it', asyn
   const frames: [FeatureFrame, FrameStatus][] = Array.from({ length: 32 }, (_, i) => [frame(i, null), 'noPose']);
   frames.push([frame(32, 0.2), 'ok']);
   await startRecognition(fakeSource(frames), fakeClassifier([]), null, cb);
-  assert.deepEqual(log.hints, ['moveBack', null]);
+  assert.deepEqual(log.hints, [null, 'moveBack', null]);
 });
 
 test('classifier load failure gives unavailable/noModel', async () => {
@@ -100,4 +100,10 @@ test('camera permission denied gives unavailable/noCamera', async () => {
   const denied = Object.assign(new Error('Permission denied'), { name: 'NotAllowedError' });
   await startRecognition(fakeSource([], denied), fakeClassifier([]), null, cb);
   assert.deepEqual(log.states, ['loading', 'unavailable:noCamera']);
+});
+
+test('reports no hint when a new recognition starts, so a stale hint is cleared', async () => {
+  const { log, cb } = collect();
+  await startRecognition(fakeSource([[frame(0, 0.2), 'ok']]), fakeClassifier([]), null, cb);
+  assert.equal(log.hints[0], null);
 });

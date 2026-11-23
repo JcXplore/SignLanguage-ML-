@@ -5,15 +5,9 @@ import { Colors, Radius, Type, FontFamily } from '@/constants/theme';
 
 export type RecognitionMode = 'alphabet' | 'numbers' | 'common';
 
-/** What the result card shows. */
-export type HUDStatus =
-  | { kind: 'loading' }
-  | { kind: 'unavailable'; reason: UnavailableNotice }
-  | { kind: 'idle' }
-  | { kind: 'read'; label: string; test?: boolean }
-  | { kind: 'unsure'; top: string[] };
+import type { HUDStatus, UnavailableNotice } from '@/recognition/screenStatus';
 
-export type UnavailableNotice = 'notTrained' | 'noModel' | 'noCamera' | 'platform';
+export type { HUDStatus, UnavailableNotice };
 
 const NOTICE: Record<UnavailableNotice, string> = {
   notTrained: "Letters and numbers aren't trained yet. Switch to Words.",

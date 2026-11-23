@@ -48,3 +48,33 @@ def active_span(seq: np.ndarray) -> tuple[int, int]:
     if len(moving) == 0:
         return 0, len(seq)
     return max(0, moving[0] - SPAN_PAD), min(len(seq), moving[-1] + 1 + SPAN_PAD)
+
+
+# --- the app's live segmenter (FSL/src/recognition/segmenter.ts), frame-indexed at 30 fps
+FRAME_MS = 1000 / 30
+END_STILL_MS, MIN_MS, MAX_MS = 300, 300, 3000
+
+
+def live_segments(seq: np.ndarray) -> list[tuple[int, int, str]]:
+    """Segments the app would cut from this sequence: [(start, end), reason]. Same rules as segmenter.ts."""
+    m = motion(seq)
+    out: list[tuple[int, int, str]] = []
+    start = None
+    first_move = last_move = 0
+    for i in range(len(seq)):
+        moving = i > 0 and m[i] > MOTION_THRESHOLD
+        t = i * FRAME_MS
+        if start is None:
+            if moving:
+                start = max(0, i - SPAN_PAD)
+                first_move = last_move = i
+            continue
+        if moving:
+            last_move = i
+        reason = "maxLength" if t - first_move * FRAME_MS >= MAX_MS else "ended" if t - last_move * FRAME_MS >= END_STILL_MS else None
+        if reason:
+            too_short = (last_move - first_move) * FRAME_MS < MIN_MS
+            if not (too_short and reason == "ended"):
+                out.append((start, min(i + 1, last_move + 1 + SPAN_PAD), reason))
+            start = None
+    return out

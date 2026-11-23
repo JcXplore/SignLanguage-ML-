@@ -6,6 +6,7 @@
  */
 import type { HandLandmarker, PoseLandmarker } from '@mediapipe/tasks-vision';
 import { frameFeatures } from './features.ts';
+import { usablePose } from './poseCheck.ts';
 import type { HandInput, HandPointSource, Vec3 } from './types.ts';
 
 const BASE = '/mediapipe';
@@ -88,7 +89,7 @@ export function createHandPointSource(): HandPointSource {
           label: (h.handedness[i]?.[0]?.categoryName === 'Left' ? 'Left' : 'Right') as HandInput['label'],
           points: pts.map((lm) => [lm.x, lm.y, lm.z] as Vec3),
         }));
-        const posePts = p.landmarks[0]?.map((lm) => [lm.x, lm.y, lm.z] as Vec3) ?? null;
+        const posePts = usablePose(p.landmarks[0]);
         const v = frameFeatures(handInputs, posePts);
         onFrame({ t: now, v }, !posePts ? 'noPose' : handInputs.length === 0 ? 'noHands' : 'ok');
       };

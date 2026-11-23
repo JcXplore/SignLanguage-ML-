@@ -37,6 +37,7 @@ export async function startRecognition(
 ): Promise<{ stop(): void }> {
   const stop = () => source.stop();
   cb.onState('loading');
+  cb.onHint(null); // a new run starts with no hint, clearing any left from the last one
   try {
     await classifier.load();
   } catch {

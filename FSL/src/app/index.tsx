@@ -10,6 +10,7 @@ import { DetectionHUD, HUDStatus, RecognitionMode } from '@/components/asl/Detec
 import { SentenceBuilder } from '@/components/asl/SentenceBuilder';
 import { WebCameraView } from '@/components/asl/WebCameraView';
 import { useSignRecognition } from '@/recognition/useSignRecognition';
+import { screenStatus } from '@/recognition/screenStatus';
 import { SpeechService } from '@/services/speechService';
 
 /** Letters join into a word; whole-word signs get a space before them. */
@@ -28,6 +29,7 @@ export default function TranslateScreen() {
   const [mode, setMode] = useState<RecognitionMode>('common');
   const [video, setVideo] = useState<HTMLVideoElement | null>(null);
   const [shown, setShown] = useState<HUDStatus | null>(null);
+  const [cameraError, setCameraError] = useState(false);
   const [sentence, setSentence] = useState('');
 
   const recognition = useSignRecognition(video, mode === 'common');
@@ -47,16 +49,7 @@ export default function TranslateScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recognition.last?.id]);
 
-  const status: HUDStatus =
-    shown?.kind === 'read' && shown.test
-      ? shown
-      : mode !== 'common'
-        ? { kind: 'unavailable', reason: 'notTrained' }
-        : recognition.state === 'unavailable'
-          ? { kind: 'unavailable', reason: recognition.reason ?? 'noModel' }
-          : recognition.state === 'loading'
-            ? { kind: 'loading' }
-            : (shown ?? { kind: 'idle' });
+  const status = screenStatus({ mode, recognition, cameraError, shown });
 
   if (!permission) {
     return (
@@ -104,7 +97,15 @@ export default function TranslateScreen() {
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={[styles.flex, { backgroundColor: '#000' }]}>
       <View style={styles.camera}>
-        <WebCameraView style={styles.flex} facing={facing} onVideo={setVideo} />
+        <WebCameraView
+          style={styles.flex}
+          facing={facing}
+          onVideo={(v) => {
+            setVideo(v);
+            if (v) setCameraError(false);
+          }}
+          onError={() => setCameraError(true)}
+        />
         <DetectionHUD
           status={status}
           hint={recognition.hint}
