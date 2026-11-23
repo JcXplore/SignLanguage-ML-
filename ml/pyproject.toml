@@ -8,7 +8,6 @@ dependencies = [
   "mediapipe>=0.10.30",
   "opencv-python-headless>=4.9",
   "tensorflow>=2.20,<2.22",
-  "tensorflowjs>=4.20",
 ]
 
 [project.optional-dependencies]

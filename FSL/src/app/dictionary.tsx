@@ -157,6 +157,13 @@ export default function DictionaryScreen() {
             <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
           </TouchableOpacity>
         )}
+        ListFooterComponent={
+          results.length > 0 ? (
+            <Text style={[Type.meta, styles.credit, { color: colors.textSecondary }]}>
+              Sign recognition trained on FSL-105 by Isaiah Jassen Tupal (2023), CC BY 4.0.
+            </Text>
+          ) : null
+        }
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={[Type.heading, { color: colors.text }]}>
@@ -264,6 +271,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   centerText: { textAlign: 'center' },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  credit: { marginTop: 20, textAlign: 'center' },
   search: {
     flexDirection: 'row',
     alignItems: 'center',

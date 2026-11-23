@@ -5,16 +5,33 @@ import { Colors, Radius, Type, FontFamily } from '@/constants/theme';
 
 export type RecognitionMode = 'alphabet' | 'numbers' | 'common';
 
+/** What the result card shows. */
+export type HUDStatus =
+  | { kind: 'loading' }
+  | { kind: 'unavailable'; reason: UnavailableNotice }
+  | { kind: 'idle' }
+  | { kind: 'read'; label: string; test?: boolean }
+  | { kind: 'unsure'; top: string[] };
+
+export type UnavailableNotice = 'notTrained' | 'noModel' | 'noCamera' | 'platform';
+
+const NOTICE: Record<UnavailableNotice, string> = {
+  notTrained: "Letters and numbers aren't trained yet. Switch to Words.",
+  noModel: "The sign model didn't load. Restart the app.",
+  noCamera: 'Allow the camera to read signs.',
+  platform: "Sign reading isn't available on this device yet.",
+};
+
 interface DetectionHUDProps {
-  detectedSign: string | null;
-  confidence: number;
+  status: HUDStatus;
+  hint?: 'moveBack' | null;
+  /** A "not sure" guess the signer tapped to accept. */
+  onPickGuess?: (label: string) => void;
   mode: RecognitionMode;
   onChangeMode: (mode: RecognitionMode) => void;
   onFlipCamera: () => void;
   hapticEnabled: boolean;
   onToggleHaptic: () => void;
-  /** False while no recognition model is connected: shows a notice, not results. */
-  recognitionEnabled: boolean;
 }
 
 const MODES: { id: RecognitionMode; label: string; spoken: string }[] = [
@@ -30,14 +47,14 @@ const sun = Colors.light.highlight;
 const scrim = 'rgba(13, 19, 34, 0.78)';
 
 export const DetectionHUD: React.FC<DetectionHUDProps> = ({
-  detectedSign,
-  confidence,
+  status,
+  hint,
+  onPickGuess,
   mode,
   onChangeMode,
   onFlipCamera,
   hapticEnabled,
   onToggleHaptic,
-  recognitionEnabled,
 }) => {
   // Size the hand frame from the space actually left between the controls,
   // so it never runs under the result card on small phones.
@@ -49,18 +66,18 @@ export const DetectionHUD: React.FC<DetectionHUDProps> = ({
   const frameWidth = Math.min(frameArea.width * 0.72, (frameArea.height - 16) * 0.88, 300);
   const frameHeight = frameWidth / 0.88;
 
-  const isSure = confidence >= 0.85;
-  const hasSign = detectedSign !== null;
+  const live = status.kind === 'idle' || status.kind === 'read' || status.kind === 'unsure';
+  const hasSign = status.kind === 'read';
 
   return (
     <View style={styles.container} pointerEvents="box-none">
       <View style={styles.topRow}>
         <View style={styles.statusChip}>
           <View
-            style={[styles.statusDot, { backgroundColor: recognitionEnabled ? '#4CC38A' : sun }]}
+            style={[styles.statusDot, { backgroundColor: live ? '#4CC38A' : sun }]}
           />
           <Text style={styles.statusText}>
-            {recognitionEnabled ? 'Reading signs' : 'Preview mode'}
+            {live ? 'Reading signs' : status.kind === 'loading' ? 'Loading' : 'Not reading signs'}
           </Text>
         </View>
 
@@ -121,46 +138,67 @@ export const DetectionHUD: React.FC<DetectionHUDProps> = ({
       </View>
 
       <View style={styles.resultArea} accessibilityLiveRegion="polite">
-        {hasSign ? (
+        {hint === 'moveBack' && live ? (
+          <Notice icon="resize-outline" text="Move back so your shoulders are in view." />
+        ) : status.kind === 'read' ? (
           <View style={styles.resultCard}>
             <View style={styles.signTile}>
               <Text
-                style={[styles.signTileText, detectedSign.length > 2 && styles.signTileWord]}
+                style={[styles.signTileText, status.label.length > 2 && styles.signTileWord]}
                 numberOfLines={1}>
-                {detectedSign}
+                {status.label}
               </Text>
             </View>
             <View style={styles.resultText}>
-              <Text style={styles.resultTitle}>
-                {recognitionEnabled ? (isSure ? 'Read with confidence' : 'Not sure yet') : 'Test sign'}
-              </Text>
+              <Text style={styles.resultTitle}>{status.test ? 'Test sign' : 'Read'}</Text>
               <Text style={styles.resultSub}>
-                {recognitionEnabled
-                  ? isSure
-                    ? 'Added to your sentence'
-                    : 'Hold the sign a little longer'
-                  : 'Tapped in, not read from the camera'}
+                {status.test ? 'Tapped in, not read from the camera' : 'Added to your sentence'}
               </Text>
             </View>
           </View>
-        ) : (
+        ) : status.kind === 'unsure' ? (
           <View style={styles.resultCard}>
-            <Ionicons
-              name={recognitionEnabled ? 'hand-left-outline' : 'information-circle-outline'}
-              size={22}
-              color={recognitionEnabled ? '#FFFFFF' : sun}
-            />
-            <Text style={[styles.resultSub, styles.flex]}>
-              {recognitionEnabled
-                ? 'Show your hand inside the frame'
-                : "Sign reading isn't connected yet. The camera preview is live."}
-            </Text>
+            <View style={styles.resultText}>
+              <Text style={styles.resultTitle}>Not sure yet</Text>
+              {status.top.length > 0 ? (
+                <View style={styles.guessRow}>
+                  <Text style={styles.resultSub}>Did you sign</Text>
+                  {status.top.map((g) => (
+                    <TouchableOpacity
+                      key={g}
+                      style={styles.guessChip}
+                      onPress={() => onPickGuess?.(g)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Add ${g}`}>
+                      <Text style={styles.guessText}>{g}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : (
+                <Text style={styles.resultSub}>Try the sign again, a little slower</Text>
+              )}
+            </View>
           </View>
+        ) : status.kind === 'unavailable' ? (
+          <Notice icon="information-circle-outline" text={NOTICE[status.reason]} tone="warn" />
+        ) : status.kind === 'loading' ? (
+          <Notice icon="hourglass-outline" text="Loading the sign model" />
+        ) : (
+          <Notice icon="hand-left-outline" text="Sign a word, then hold your hands still for a moment" />
         )}
       </View>
     </View>
   );
 };
+
+function Notice({ icon, text, tone }: { icon: React.ComponentProps<typeof Ionicons>['name']; text: string; tone?: 'warn' }) {
+  return (
+    <View style={styles.resultCard}>
+      <Ionicons name={icon} size={22} color={tone === 'warn' ? sun : '#FFFFFF'} />
+      <Text style={[styles.resultSub, styles.flex]}>{text}</Text>
+    </View>
+  );
+}
 
 const CORNER = 30;
 const BORDER = 4;
@@ -287,6 +325,24 @@ const styles = StyleSheet.create({
   resultTitle: {
     ...Type.bodyStrong,
     color: '#FFFFFF',
+  },
+  guessRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+  guessChip: {
+    backgroundColor: sun,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 14,
+    minHeight: 40,
+    justifyContent: 'center',
+  },
+  guessText: {
+    ...Type.smallStrong,
+    color: ink,
   },
   resultSub: {
     ...Type.small,

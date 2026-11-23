@@ -1,19 +1,22 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
+import { CameraType, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { Linking } from 'react-native';
 import { Radius, Type } from '@/constants/theme';
 import { usePalette } from '@/hooks/use-palette';
-import { DetectionHUD, RecognitionMode } from '@/components/asl/DetectionHUD';
+import { DetectionHUD, HUDStatus, RecognitionMode } from '@/components/asl/DetectionHUD';
 import { SentenceBuilder } from '@/components/asl/SentenceBuilder';
+import { WebCameraView } from '@/components/asl/WebCameraView';
+import { useSignRecognition } from '@/recognition/useSignRecognition';
 import { SpeechService } from '@/services/speechService';
 
-// No on-device FSL recognition model is connected yet. While this is false the
-// screen says so instead of showing made-up results. Set to true once the model
-// feeds real detections into setDetectedSign / setConfidence.
-const RECOGNITION_ENABLED = false;
+/** Letters join into a word; whole-word signs get a space before them. */
+function appendSign(prev: string, sign: string) {
+  if (sign.length === 1) return prev + sign;
+  return prev && !prev.endsWith(' ') ? `${prev} ${sign}` : prev + sign;
+}
 
 export default function TranslateScreen() {
   const { colors } = usePalette();
@@ -21,25 +24,39 @@ export default function TranslateScreen() {
   const [facing, setFacing] = useState<CameraType>('front');
   const [permission, requestPermission] = useCameraPermissions();
   const [hapticEnabled, setHapticEnabled] = useState(true);
-  const [mode, setMode] = useState<RecognitionMode>('alphabet');
-  const [detectedSign, setDetectedSign] = useState<string | null>(null);
-  const [confidence, setConfidence] = useState(0);
+  // Words is the only trained mode so far (FSL-105); letters and numbers come next.
+  const [mode, setMode] = useState<RecognitionMode>('common');
+  const [video, setVideo] = useState<HTMLVideoElement | null>(null);
+  const [shown, setShown] = useState<HUDStatus | null>(null);
   const [sentence, setSentence] = useState('');
 
-  const handleAppendText = (text: string) => {
-    setSentence((prev) => prev + text);
+  const recognition = useSignRecognition(video, mode === 'common');
+
+  const addSign = (sign: string, test = false) => {
+    setSentence((prev) => appendSign(prev, sign));
+    setShown({ kind: 'read', label: sign, test });
     if (hapticEnabled) SpeechService.triggerRecognitionHaptic();
   };
 
-  const handleTestSign = (sign: string) => {
-    setDetectedSign(sign);
-    setConfidence(1);
-    // Letters join into a word; whole-word signs get a space before them.
-    setSentence((prev) =>
-      sign.length === 1 ? prev + sign : prev && !prev.endsWith(' ') ? `${prev} ${sign}` : prev + sign
-    );
-    if (hapticEnabled) SpeechService.triggerRecognitionHaptic();
-  };
+  // Each new decision from the camera: add a confident sign, or offer the top guesses.
+  useEffect(() => {
+    const d = recognition.last;
+    if (!d) return;
+    if (d.kind === 'read') addSign(d.label);
+    else setShown({ kind: 'unsure', top: d.top.map((g) => g.label) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recognition.last?.id]);
+
+  const status: HUDStatus =
+    shown?.kind === 'read' && shown.test
+      ? shown
+      : mode !== 'common'
+        ? { kind: 'unavailable', reason: 'notTrained' }
+        : recognition.state === 'unavailable'
+          ? { kind: 'unavailable', reason: recognition.reason ?? 'noModel' }
+          : recognition.state === 'loading'
+            ? { kind: 'loading' }
+            : (shown ?? { kind: 'idle' });
 
   if (!permission) {
     return (
@@ -87,28 +104,31 @@ export default function TranslateScreen() {
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={[styles.flex, { backgroundColor: '#000' }]}>
       <View style={styles.camera}>
-        <CameraView style={styles.flex} facing={facing} />
+        <WebCameraView style={styles.flex} facing={facing} onVideo={setVideo} />
         <DetectionHUD
-          detectedSign={detectedSign}
-          confidence={confidence}
+          status={status}
+          hint={recognition.hint}
+          onPickGuess={(label) => addSign(label)}
           mode={mode}
-          onChangeMode={setMode}
+          onChangeMode={(m) => {
+            setMode(m);
+            setShown(null);
+          }}
           onFlipCamera={() => setFacing((f) => (f === 'back' ? 'front' : 'back'))}
           hapticEnabled={hapticEnabled}
           onToggleHaptic={() => setHapticEnabled((v) => !v)}
-          recognitionEnabled={RECOGNITION_ENABLED}
         />
       </View>
 
       <SentenceBuilder
         sentence={sentence}
-        onAppendText={handleAppendText}
+        onAppendText={(text) => setSentence((prev) => prev + text)}
         onBackspace={() => setSentence((prev) => prev.slice(0, -1))}
         onClear={() => {
           setSentence('');
-          setDetectedSign(null);
+          setShown(null);
         }}
-        onTestSign={handleTestSign}
+        onTestSign={(sign) => addSign(sign, true)}
       />
     </SafeAreaView>
   );
