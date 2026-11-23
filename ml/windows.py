@@ -52,7 +52,7 @@ def active_span(seq: np.ndarray) -> tuple[int, int]:
 
 # --- the app's live segmenter (FSL/src/recognition/segmenter.ts), frame-indexed at 30 fps
 FRAME_MS = 1000 / 30
-END_STILL_MS, MIN_MS, MAX_MS = 300, 300, 3000
+END_STILL_MS, MIN_MS, MAX_MS = 300, 200, 3000
 
 
 def live_segments(seq: np.ndarray) -> list[tuple[int, int, str]]:
@@ -78,3 +78,13 @@ def live_segments(seq: np.ndarray) -> list[tuple[int, int, str]]:
                 out.append((start, min(i + 1, last_move + 1 + SPAN_PAD), reason))
             start = None
     return out
+
+
+def sign_span(seq: np.ndarray) -> tuple[int, int]:
+    """The window the app would classify for this clip: its longest live segment
+    (falling back to active_span when the clip never settles, e.g. it ends mid-motion)."""
+    segs = live_segments(seq)
+    if not segs:
+        return active_span(seq)
+    a, b, _ = max(segs, key=lambda s: s[1] - s[0])
+    return a, b

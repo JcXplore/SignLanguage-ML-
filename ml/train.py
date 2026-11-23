@@ -16,7 +16,7 @@ from pathlib import Path
 import numpy as np
 
 from augment import random_augment
-from windows import WINDOW, active_span, resample_to_32
+from windows import WINDOW, resample_to_32, sign_span
 
 HERE = Path(__file__).parent
 WORK = HERE / "work"
@@ -32,12 +32,12 @@ def load(points: Path):
 
 
 def eval_window(seq: np.ndarray) -> np.ndarray:
-    a, b = active_span(seq)
+    a, b = sign_span(seq)
     return resample_to_32(seq[a:b])
 
 
 def train_window(seq: np.ndarray, rng: np.random.Generator) -> np.ndarray:
-    a, b = active_span(seq)
+    a, b = sign_span(seq)
     n = b - a
     a2 = a + int(rng.uniform(0, CROP) * n)
     b2 = b - int(rng.uniform(0, CROP) * n)

@@ -105,3 +105,26 @@ def test_live_short_twitch_is_dropped():
 def test_live_long_signing_cut_at_3s():
     segs = live_segments(xs_to_seq(still(5) + moving(120)))
     assert segs and segs[0][2] == "maxLength"
+
+
+def test_live_held_sign_with_brief_raise_is_kept():
+    # raise the hand for ~230 ms, then hold the handshape: a held sign, not a twitch
+    m = moving(7)
+    assert len(live_segments(xs_to_seq(still(10) + m + still(30, m[-1])))) == 1
+
+
+def test_sign_span_is_the_longest_live_segment():
+    from windows import sign_span
+
+    a = moving(20)
+    b = moving(8, a[-1])
+    seq = xs_to_seq(still(10) + a + still(15, a[-1]) + b + still(20, b[-1]))
+    start, end = sign_span(seq)
+    assert start == 10 - 4 and end - start >= 20
+
+
+def test_sign_span_falls_back_to_active_span():
+    from windows import active_span, sign_span
+
+    seq = xs_to_seq(still(10) + moving(40))  # still moving when the clip ends
+    assert sign_span(seq) == active_span(seq)

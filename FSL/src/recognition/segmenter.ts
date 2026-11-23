@@ -44,7 +44,7 @@ export function frameMotion(prev: Float32Array, cur: Float32Array): number {
 export function createSegmenter(opts: SegmenterOptions = {}) {
   const motionThreshold = opts.motionThreshold ?? 0.02;
   const endStillMs = opts.endStillMs ?? 300;
-  const minMs = opts.minMs ?? 300;
+  const minMs = opts.minMs ?? 200; // held signs: a brief raise, then a still handshape
   const maxMs = opts.maxMs ?? 3000;
 
   let prev: FeatureFrame | null = null;

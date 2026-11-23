@@ -57,7 +57,7 @@ test('gap shorter than 300ms continues segment', () => {
   assert.equal(segs.length, 1);
 });
 
-test('segment under 300ms is dropped', () => {
+test('segment under 200ms (a twitch) is dropped', () => {
   const m = moving(5); // ~133ms of motion
   assert.equal(run([...still(10), ...m, ...still(20, m[m.length - 1])]).length, 0);
 });
@@ -78,4 +78,9 @@ test('resampleTo32 of 32 frames is identity, of 64 picks every other', () => {
   const f63 = Array.from({ length: 63 }, (_, i) => ({ t: i, v: new Float32Array(149).fill(i) }));
   const w63 = resampleTo32(f63);
   for (let i = 0; i < 32; i++) assert.equal(w63[i * 149], 2 * i);
+});
+
+test('a held sign with a brief raise (~230ms of motion) is kept', () => {
+  const m = moving(7);
+  assert.equal(run([...still(10), ...m, ...still(30, m[m.length - 1])]).length, 1);
 });
