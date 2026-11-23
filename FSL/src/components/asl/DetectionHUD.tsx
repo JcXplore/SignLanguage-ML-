@@ -1,363 +1,295 @@
-import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '@/constants/theme';
+import React, { useState } from 'react';
+import { LayoutChangeEvent, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Colors, Radius, Type } from '@/constants/theme';
+
+export type RecognitionMode = 'alphabet' | 'numbers' | 'common';
 
 interface DetectionHUDProps {
   detectedSign: string | null;
   confidence: number;
-  mode: 'alphabet' | 'numbers' | 'common';
-  onToggleMode: () => void;
+  mode: RecognitionMode;
+  onChangeMode: (mode: RecognitionMode) => void;
   onFlipCamera: () => void;
   hapticEnabled: boolean;
   onToggleHaptic: () => void;
-  isDark: boolean;
-  /** False while no recognition model is connected: shows a demo notice, not results. */
+  /** False while no recognition model is connected: shows a notice, not results. */
   recognitionEnabled: boolean;
 }
+
+const MODES: { id: RecognitionMode; label: string; spoken: string }[] = [
+  { id: 'alphabet', label: 'ABC', spoken: 'Letters' },
+  { id: 'numbers', label: '123', spoken: 'Numbers' },
+  { id: 'common', label: 'Words', spoken: 'Words' },
+];
+
+// The overlay always sits on camera video, so it uses fixed light-on-dark colors
+// in both themes.
+const ink = Colors.light.text;
+const sun = Colors.light.highlight;
+const scrim = 'rgba(13, 19, 34, 0.78)';
 
 export const DetectionHUD: React.FC<DetectionHUDProps> = ({
   detectedSign,
   confidence,
   mode,
-  onToggleMode,
+  onChangeMode,
   onFlipCamera,
   hapticEnabled,
   onToggleHaptic,
-  isDark,
   recognitionEnabled,
 }) => {
-  const colors = Colors[isDark ? 'dark' : 'light'];
-
-  const getModeLabel = () => {
-    switch (mode) {
-      case 'alphabet':
-        return 'ABC Letters';
-      case 'numbers':
-        return '123 Numbers';
-      case 'common':
-        return 'Word Phrases';
-    }
+  // Size the hand frame from the space actually left between the controls,
+  // so it never runs under the result card on small phones.
+  const [frameArea, setFrameArea] = useState({ width: 0, height: 0 });
+  const onFrameAreaLayout = (e: LayoutChangeEvent) => {
+    const { width, height } = e.nativeEvent.layout;
+    setFrameArea({ width, height });
   };
+  const frameWidth = Math.min(frameArea.width * 0.72, (frameArea.height - 16) * 0.88, 300);
+  const frameHeight = frameWidth / 0.88;
+
+  const isSure = confidence >= 0.85;
+  const hasSign = detectedSign !== null;
 
   return (
     <View style={styles.container} pointerEvents="box-none">
-      {/* Top Header Overlay */}
       <View style={styles.topRow}>
-        <View style={styles.offlineBadge}>
+        <View style={styles.statusChip}>
           <View
-            style={[
-              styles.offlineDot,
-              !recognitionEnabled && { backgroundColor: '#F59E0B' },
-            ]}
+            style={[styles.statusDot, { backgroundColor: recognitionEnabled ? '#4CC38A' : sun }]}
           />
-          <Text style={styles.offlineText}>
-            {recognitionEnabled ? 'Works offline' : 'Demo · not reading signs yet'}
+          <Text style={styles.statusText}>
+            {recognitionEnabled ? 'Reading signs' : 'Preview mode'}
           </Text>
         </View>
 
         <View style={styles.topActions}>
           <TouchableOpacity
-            style={[styles.actionBtn, hapticEnabled && styles.actionBtnActive]}
+            style={[styles.roundBtn, hapticEnabled && styles.roundBtnOn]}
             onPress={onToggleHaptic}
             activeOpacity={0.7}
             accessibilityRole="switch"
             accessibilityState={{ checked: hapticEnabled }}
-            accessibilityLabel="Vibrate when a sign is recognized">
-            <Ionicons
-              name={hapticEnabled ? 'radio' : 'radio-outline'}
-              size={18}
-              color={hapticEnabled ? '#10B981' : '#FFFFFF'}
+            accessibilityLabel="Vibrate when a sign is read">
+            <MaterialCommunityIcons
+              name={hapticEnabled ? 'vibrate' : 'vibrate-off'}
+              size={20}
+              color={hapticEnabled ? ink : '#FFFFFF'}
             />
           </TouchableOpacity>
-
           <TouchableOpacity
-            style={styles.actionBtn}
+            style={styles.roundBtn}
             onPress={onFlipCamera}
             activeOpacity={0.7}
             accessibilityRole="button"
-            accessibilityLabel="Flip camera">
-            <Ionicons name="camera-reverse-outline" size={20} color="#FFFFFF" />
+            accessibilityLabel="Switch camera">
+            <Ionicons name="camera-reverse-outline" size={22} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Target Reticle in Center */}
-      <View style={styles.reticleContainer} pointerEvents="none">
-        <View style={styles.reticleBox}>
-          {/* Reticle corner accents */}
-          <View style={[styles.corner, styles.topLeft]} />
-          <View style={[styles.corner, styles.topRight]} />
-          <View style={[styles.corner, styles.bottomLeft]} />
-          <View style={[styles.corner, styles.bottomRight]} />
-
-          <Text style={styles.reticleHint}>Position hand inside frame</Text>
-        </View>
+      <View style={styles.segmented} accessibilityRole="radiogroup" accessibilityLabel="What to read">
+        {MODES.map((m) => {
+          const selected = m.id === mode;
+          return (
+            <TouchableOpacity
+              key={m.id}
+              style={[styles.segment, selected && styles.segmentOn]}
+              onPress={() => onChangeMode(m.id)}
+              activeOpacity={0.8}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: selected }}
+              accessibilityLabel={m.spoken}>
+              <Text style={[styles.segmentText, selected && styles.segmentTextOn]}>{m.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
-      {/* Bottom Mode Switcher & Detection Badge */}
-      <View style={styles.bottomSection}>
-        {/* Detection Card */}
-        {!recognitionEnabled && !detectedSign ? (
-          <View style={styles.idleCard}>
-            <Ionicons name="information-circle-outline" size={20} color="#FBBF24" />
-            <Text style={styles.idleText}>
-              Sign recognition isn't connected yet
-            </Text>
+      <View style={styles.frameArea} onLayout={onFrameAreaLayout} pointerEvents="none">
+        {frameWidth > 0 && (
+          <View style={{ width: frameWidth, height: frameHeight }}>
+            {(['tl', 'tr', 'bl', 'br'] as const).map((c) => (
+              <View
+                key={c}
+                style={[styles.corner, styles[c], { borderColor: hasSign ? sun : 'rgba(255,255,255,0.85)' }]}
+              />
+            ))}
           </View>
-        ) : detectedSign ? (
-          <View style={styles.detectionCard}>
-            <View style={styles.signBadge}>
-              <Text style={styles.signBadgeText}>{detectedSign}</Text>
-            </View>
-            <View style={styles.detectionInfo}>
-              <Text style={styles.detectionTitle}>
-                {recognitionEnabled ? 'Recognized Sign' : 'Test sign (not from camera)'}
+        )}
+      </View>
+
+      <View style={styles.resultArea} accessibilityLiveRegion="polite">
+        {hasSign ? (
+          <View style={styles.resultCard}>
+            <View style={styles.signTile}>
+              <Text
+                style={[styles.signTileText, detectedSign.length > 2 && styles.signTileWord]}
+                numberOfLines={1}>
+                {detectedSign}
               </Text>
-              {recognitionEnabled && (
-              <View style={styles.confidenceRow}>
-                <View style={styles.confidenceTrack}>
-                  <View
-                    style={[
-                      styles.confidenceBar,
-                      { width: `${Math.round(confidence * 100)}%` },
-                    ]}
-                  />
-                </View>
-                <Text style={styles.confidenceText}>
-                  {Math.round(confidence * 100)}%
-                </Text>
-              </View>
-              )}
+            </View>
+            <View style={styles.resultText}>
+              <Text style={styles.resultTitle}>
+                {recognitionEnabled ? (isSure ? 'Read with confidence' : 'Not sure yet') : 'Test sign'}
+              </Text>
+              <Text style={styles.resultSub}>
+                {recognitionEnabled
+                  ? isSure
+                    ? 'Added to your sentence'
+                    : 'Hold the sign a little longer'
+                  : 'Tapped in, not read from the camera'}
+              </Text>
             </View>
           </View>
         ) : (
-          <View style={styles.idleCard}>
-            <Ionicons name="hand-right-outline" size={20} color="#94A3B8" />
-            <Text style={styles.idleText}>Ready • Looking for hand gestures...</Text>
+          <View style={styles.resultCard}>
+            <Ionicons
+              name={recognitionEnabled ? 'hand-left-outline' : 'information-circle-outline'}
+              size={22}
+              color={recognitionEnabled ? '#FFFFFF' : sun}
+            />
+            <Text style={[styles.resultSub, styles.flex]}>
+              {recognitionEnabled
+                ? 'Show your hand inside the frame'
+                : "Sign reading isn't connected yet. The camera preview is live."}
+            </Text>
           </View>
         )}
-
-        {/* Mode Selector Pill */}
-        <TouchableOpacity
-          style={styles.modePill}
-          onPress={onToggleMode}
-          activeOpacity={0.8}
-          accessibilityRole="button"
-          accessibilityLabel={`Recognition mode: ${getModeLabel()}`}
-          accessibilityHint="Switches between letters, numbers and words">
-          <Ionicons name="layers-outline" size={16} color="#FFFFFF" />
-          <Text style={styles.modePillLabel}>Mode: {getModeLabel()}</Text>
-          <Ionicons name="swap-horizontal" size={14} color="#A5B4FC" />
-        </TouchableOpacity>
       </View>
     </View>
   );
 };
 
+const CORNER = 30;
+const BORDER = 4;
+
 const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFill,
-    justifyContent: 'space-between',
     padding: 16,
+    gap: 12,
   },
+  flex: { flex: 1 },
   topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 8,
   },
-  offlineBadge: {
+  statusChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    gap: 8,
+    backgroundColor: scrim,
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    gap: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    height: 32,
+    borderRadius: Radius.pill,
   },
-  offlineDot: {
+  statusDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#10B981',
   },
-  offlineText: {
-    color: '#F8FAFC',
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 0.3,
+  statusText: {
+    ...Type.meta,
+    color: '#FFFFFF',
   },
   topActions: {
     flexDirection: 'row',
     gap: 10,
   },
-  actionBtn: {
+  roundBtn: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    backgroundColor: scrim,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
-  actionBtnActive: {
-    borderColor: '#10B981',
+  roundBtnOn: {
+    backgroundColor: sun,
   },
-  reticleContainer: {
+  segmented: {
+    flexDirection: 'row',
+    alignSelf: 'center',
+    backgroundColor: scrim,
+    borderRadius: Radius.pill,
+    padding: 4,
+  },
+  segment: {
+    minWidth: 72,
+    height: 40,
+    paddingHorizontal: 14,
+    borderRadius: Radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  reticleBox: {
-    width: 260,
-    height: 290,
-    position: 'relative',
+  segmentOn: {
+    backgroundColor: sun,
+  },
+  segmentText: {
+    ...Type.smallStrong,
+    color: '#FFFFFF',
+  },
+  segmentTextOn: {
+    color: ink,
+  },
+  frameArea: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   corner: {
     position: 'absolute',
-    width: 28,
-    height: 28,
-    borderColor: '#6366F1',
+    width: CORNER,
+    height: CORNER,
   },
-  topLeft: {
-    top: 0,
-    left: 0,
-    borderTopWidth: 3,
-    borderLeftWidth: 3,
-    borderTopLeftRadius: 10,
+  tl: { top: 0, left: 0, borderTopWidth: BORDER, borderLeftWidth: BORDER, borderTopLeftRadius: 12 },
+  tr: { top: 0, right: 0, borderTopWidth: BORDER, borderRightWidth: BORDER, borderTopRightRadius: 12 },
+  bl: { bottom: 0, left: 0, borderBottomWidth: BORDER, borderLeftWidth: BORDER, borderBottomLeftRadius: 12 },
+  br: { bottom: 0, right: 0, borderBottomWidth: BORDER, borderRightWidth: BORDER, borderBottomRightRadius: 12 },
+  resultArea: {
+    alignItems: 'stretch',
   },
-  topRight: {
-    top: 0,
-    right: 0,
-    borderTopWidth: 3,
-    borderRightWidth: 3,
-    borderTopRightRadius: 10,
-  },
-  bottomLeft: {
-    bottom: 0,
-    left: 0,
-    borderBottomWidth: 3,
-    borderLeftWidth: 3,
-    borderBottomLeftRadius: 10,
-  },
-  bottomRight: {
-    bottom: 0,
-    right: 0,
-    borderBottomWidth: 3,
-    borderRightWidth: 3,
-    borderBottomRightRadius: 10,
-  },
-  reticleHint: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 12,
-    fontWeight: '500',
-    letterSpacing: 0.2,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  bottomSection: {
-    gap: 10,
-    alignItems: 'center',
-  },
-  detectionCard: {
+  resultCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(15, 23, 42, 0.92)',
+    gap: 14,
+    backgroundColor: scrim,
+    borderRadius: Radius.card,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#6366F1',
-    gap: 14,
-    minWidth: 260,
-    shadowColor: '#000',
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    elevation: 6,
+    minHeight: 64,
   },
-  signBadge: {
-    width: 48,
+  signTile: {
+    minWidth: 48,
+    maxWidth: 140,
+    paddingHorizontal: 10,
     height: 48,
-    borderRadius: 14,
-    backgroundColor: '#4F46E5',
+    borderRadius: Radius.control,
+    backgroundColor: sun,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  signBadgeText: {
-    color: '#FFFFFF',
+  signTileText: {
+    color: ink,
     fontSize: 24,
     fontWeight: '800',
   },
-  detectionInfo: {
+  signTileWord: {
+    fontSize: 16,
+  },
+  resultText: {
     flex: 1,
+    gap: 2,
   },
-  detectionTitle: {
-    color: '#94A3B8',
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+  resultTitle: {
+    ...Type.bodyStrong,
+    color: '#FFFFFF',
   },
-  confidenceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 4,
-  },
-  confidenceTrack: {
-    flex: 1,
-    height: 6,
-    backgroundColor: '#334155',
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  confidenceBar: {
-    height: '100%',
-    backgroundColor: '#10B981',
-    borderRadius: 3,
-  },
-  confidenceText: {
-    color: '#F8FAFC',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  idleCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(15, 23, 42, 0.85)',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    gap: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  idleText: {
-    color: '#CBD5E1',
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  modePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#312E81',
-    paddingHorizontal: 16,
-    minHeight: 44,
-    borderRadius: 20,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: '#4338CA',
-  },
-  modePillLabel: {
-    color: '#E0E7FF',
-    fontSize: 13,
-    fontWeight: '700',
+  resultSub: {
+    ...Type.small,
+    color: '#D5DAE5',
   },
 });

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "FSL",
+    "name": "SignBridge",
     "slug": "FSL",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -33,7 +33,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#1F3A93",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
@@ -41,7 +41,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow SignBridge to access your camera to recognize sign language gestures offline."
+          "cameraPermission": "Allow SignBridge to access your camera to read your Filipino Sign Language signs. Video stays on your device."
         }
       ]
     ],

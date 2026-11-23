@@ -1,17 +1,12 @@
 import React, { useState } from 'react';
-import {
-  StyleSheet,
-  View,
-  Text,
-  TouchableOpacity,
-  useColorScheme,
-  Platform,
-} from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '@/constants/theme';
-import { DetectionHUD } from '@/components/asl/DetectionHUD';
+import { Linking } from 'react-native';
+import { Radius, Type } from '@/constants/theme';
+import { usePalette } from '@/hooks/use-palette';
+import { DetectionHUD, RecognitionMode } from '@/components/asl/DetectionHUD';
 import { SentenceBuilder } from '@/components/asl/SentenceBuilder';
 import { SpeechService } from '@/services/speechService';
 
@@ -20,128 +15,99 @@ import { SpeechService } from '@/services/speechService';
 // feeds real detections into setDetectedSign / setConfidence.
 const RECOGNITION_ENABLED = false;
 
-export default function CameraTranslatorScreen() {
-  const scheme = useColorScheme();
-  const isDark = scheme === 'dark';
-  const colors = Colors[isDark ? 'dark' : 'light'];
+export default function TranslateScreen() {
+  const { colors } = usePalette();
 
   const [facing, setFacing] = useState<CameraType>('front');
   const [permission, requestPermission] = useCameraPermissions();
   const [hapticEnabled, setHapticEnabled] = useState(true);
-  const [mode, setMode] = useState<'alphabet' | 'numbers' | 'common'>('alphabet');
-  
-  // Real-time detection state
+  const [mode, setMode] = useState<RecognitionMode>('alphabet');
   const [detectedSign, setDetectedSign] = useState<string | null>(null);
-  const [confidence, setConfidence] = useState<number>(0);
+  const [confidence, setConfidence] = useState(0);
+  const [sentence, setSentence] = useState('');
 
-  // Accumulated sentence state
-  const [sentence, setSentence] = useState<string>('');
-
-  const toggleCameraFacing = () => {
-    setFacing((current) => (current === 'back' ? 'front' : 'back'));
-  };
-
-  const toggleMode = () => {
-    setMode((current) => {
-      if (current === 'alphabet') return 'numbers';
-      if (current === 'numbers') return 'common';
-      return 'alphabet';
-    });
-  };
-
-  const toggleHaptic = () => {
-    setHapticEnabled((prev) => !prev);
-  };
-
-  const handleAppendText = (char: string) => {
-    setSentence((prev) => prev + char);
-    if (hapticEnabled) {
-      SpeechService.triggerRecognitionHaptic();
-    }
-  };
-
-  const handleBackspace = () => {
-    setSentence((prev) => prev.slice(0, -1));
-  };
-
-  const handleClear = () => {
-    setSentence('');
+  const handleAppendText = (text: string) => {
+    setSentence((prev) => prev + text);
+    if (hapticEnabled) SpeechService.triggerRecognitionHaptic();
   };
 
   const handleTestSign = (sign: string) => {
     setDetectedSign(sign);
-    setConfidence(0.98);
-    setSentence((prev) => (prev ? `${prev} ${sign}` : sign));
-    if (hapticEnabled) {
-      SpeechService.triggerRecognitionHaptic();
-    }
+    setConfidence(1);
+    // Letters join into a word; whole-word signs get a space before them.
+    setSentence((prev) =>
+      sign.length === 1 ? prev + sign : prev && !prev.endsWith(' ') ? `${prev} ${sign}` : prev + sign
+    );
+    if (hapticEnabled) SpeechService.triggerRecognitionHaptic();
   };
 
   if (!permission) {
-    // Camera permissions are still loading
     return (
-      <View style={[styles.centerContainer, { backgroundColor: colors.background }]}>
-        <Text style={{ color: colors.text }}>Initializing camera...</Text>
+      <View style={[styles.center, { backgroundColor: colors.background }]}>
+        <ActivityIndicator color={colors.primary} />
+        <Text style={[Type.small, { color: colors.textSecondary }]}>Starting camera</Text>
       </View>
     );
   }
 
   if (!permission.granted) {
-    // Camera permissions are not granted yet
+    const blocked = !permission.canAskAgain;
     return (
-      <SafeAreaView
-        style={[styles.permissionContainer, { backgroundColor: colors.background }]}>
-        <View style={styles.permissionCard}>
-          <View style={[styles.permissionIconBadge, { backgroundColor: colors.primaryLight }]}>
-            <Ionicons name="camera" size={36} color={colors.primary} />
+      <SafeAreaView style={[styles.permission, { backgroundColor: colors.background }]}>
+        <View style={styles.permissionBody}>
+          <View style={[styles.permissionIcon, { backgroundColor: colors.highlight }]}>
+            <Ionicons name="hand-left" size={34} color={colors.onHighlight} />
           </View>
-          <Text style={[styles.permissionTitle, { color: colors.text }]}>
-            Camera Access Required
+          <Text style={[Type.title, { color: colors.text }]} accessibilityRole="header">
+            Let SignBridge see your hands
           </Text>
-          <Text style={[styles.permissionSubtitle, { color: colors.textSecondary }]}>
-            SignBridge uses your camera to read your signs. Video stays on your
-            phone and is never uploaded.
+          <Text style={[Type.body, { color: colors.textSecondary }]}>
+            The camera is used to read your signs. Video stays on your phone and is never
+            uploaded.
           </Text>
-
           <TouchableOpacity
-            style={[styles.permissionButton, { backgroundColor: colors.primary }]}
-            onPress={requestPermission}
-            activeOpacity={0.8}
+            style={[styles.primaryBtn, { backgroundColor: colors.primarySolid }]}
+            onPress={blocked ? () => Linking.openSettings() : requestPermission}
+            activeOpacity={0.85}
             accessibilityRole="button">
-            <Text style={styles.permissionButtonText}>Allow Camera</Text>
+            <Text style={styles.primaryBtnText}>
+              {blocked ? 'Open Settings' : 'Allow camera'}
+            </Text>
           </TouchableOpacity>
+          {blocked && (
+            <Text style={[Type.small, { color: colors.textSecondary }]}>
+              Camera access is turned off. Turn it on in Settings, then come back.
+            </Text>
+          )}
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView
-      edges={['top', 'left', 'right']}
-      style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Camera View Area */}
-      <View style={styles.cameraWrapper}>
-        <CameraView style={styles.camera} facing={facing} />
+    <SafeAreaView edges={['top', 'left', 'right']} style={[styles.flex, { backgroundColor: '#000' }]}>
+      <View style={styles.camera}>
+        <CameraView style={styles.flex} facing={facing} />
         <DetectionHUD
           detectedSign={detectedSign}
           confidence={confidence}
           mode={mode}
-          onToggleMode={toggleMode}
-          onFlipCamera={toggleCameraFacing}
+          onChangeMode={setMode}
+          onFlipCamera={() => setFacing((f) => (f === 'back' ? 'front' : 'back'))}
           hapticEnabled={hapticEnabled}
-          onToggleHaptic={toggleHaptic}
-          isDark={isDark}
+          onToggleHaptic={() => setHapticEnabled((v) => !v)}
           recognitionEnabled={RECOGNITION_ENABLED}
         />
       </View>
 
-      {/* Sentence Builder Bottom Dock */}
       <SentenceBuilder
         sentence={sentence}
         onAppendText={handleAppendText}
-        onBackspace={handleBackspace}
-        onClear={handleClear}
-        isDark={isDark}
+        onBackspace={() => setSentence((prev) => prev.slice(0, -1))}
+        onClear={() => {
+          setSentence('');
+          setDetectedSign(null);
+        }}
         onTestSign={handleTestSign}
       />
     </SafeAreaView>
@@ -149,61 +115,44 @@ export default function CameraTranslatorScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  centerContainer: {
+  flex: { flex: 1 },
+  center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  permissionContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  permissionCard: {
-    alignItems: 'center',
-    maxWidth: 360,
-    gap: 16,
-  },
-  permissionIconBadge: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  permissionTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  permissionSubtitle: {
-    fontSize: 14,
-    lineHeight: 20,
-    textAlign: 'center',
-  },
-  permissionButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    borderRadius: 14,
-    width: '100%',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  permissionButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  cameraWrapper: {
-    flex: 1,
-    overflow: 'hidden',
-    backgroundColor: '#000000',
+    gap: 12,
   },
   camera: {
     flex: 1,
+    overflow: 'hidden',
+  },
+  permission: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  permissionBody: {
+    gap: 16,
+    maxWidth: 420,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  permissionIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: Radius.card,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  primaryBtn: {
+    height: 52,
+    borderRadius: Radius.control,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  primaryBtnText: {
+    ...Type.bodyStrong,
+    color: '#FFFFFF',
   },
 });

@@ -1,14 +1,8 @@
 import React from 'react';
-import {
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  ScrollView,
-  Alert,
-} from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '@/constants/theme';
+import { Radius, Type } from '@/constants/theme';
+import { usePalette } from '@/hooks/use-palette';
 import { SpeechService } from '@/services/speechService';
 
 interface SentenceBuilderProps {
@@ -16,179 +10,125 @@ interface SentenceBuilderProps {
   onAppendText: (text: string) => void;
   onBackspace: () => void;
   onClear: () => void;
-  isDark: boolean;
+  /** Developer-only shortcut to feed signs without a camera. */
   onTestSign?: (sign: string) => void;
 }
+
+const TEST_SIGNS = ['HELLO', 'HELP', 'THANK YOU', 'PLEASE', 'A', 'B', 'C', 'L', 'O', 'Y'];
 
 export const SentenceBuilder: React.FC<SentenceBuilderProps> = ({
   sentence,
   onAppendText,
   onBackspace,
   onClear,
-  isDark,
   onTestSign,
 }) => {
-  const colors = Colors[isDark ? 'dark' : 'light'];
+  const { colors } = usePalette();
   const [isSpeaking, setIsSpeaking] = React.useState(false);
+  const isEmpty = sentence.trim().length === 0;
 
   const handleSpeak = async () => {
-    if (!sentence || sentence.trim().length === 0) {
+    if (isSpeaking) {
+      await SpeechService.stop();
+      setIsSpeaking(false);
       return;
     }
+    if (isEmpty) return;
     setIsSpeaking(true);
-    await SpeechService.speak(sentence, () => {
-      setIsSpeaking(false);
-    });
+    await SpeechService.speak(sentence, () => setIsSpeaking(false));
   };
 
-  const handleCopy = () => {
-    if (!sentence) return;
-    Alert.alert('Copied', `"${sentence}" copied to clipboard.`);
-  };
-
-  const quickLetters = ['A', 'B', 'C', 'H', 'L', 'O', 'Y'];
-  const quickWords = ['HELLO', 'HELP', 'THANK YOU', 'PLEASE'];
+  const secondaryBtn = [styles.squareBtn, { backgroundColor: colors.backgroundSelected }];
 
   return (
     <View
       style={[
         styles.container,
-        {
-          backgroundColor: colors.backgroundElement,
-          borderTopColor: colors.cardBorder,
-        },
+        { backgroundColor: colors.backgroundElement, borderTopColor: colors.cardBorder },
       ]}>
-      {/* Quick Test Bar (Super helpful in emulator & development) */}
-      <View style={styles.testBarRow}>
-        <Text style={[styles.testBarLabel, { color: colors.textSecondary }]}>
-          Test Signs:
-        </Text>
+      {__DEV__ && onTestSign && (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.testChipsContainer}>
-          {quickWords.map((word) => (
+          contentContainerStyle={styles.testRow}>
+          <Text style={[Type.meta, { color: colors.textSecondary }]}>Dev test:</Text>
+          {TEST_SIGNS.map((sign) => (
             <TouchableOpacity
-              key={word}
-              style={[styles.testChip, { backgroundColor: colors.backgroundSelected }]}
-              onPress={() => onTestSign?.(word)}
-              hitSlop={{ top: 10, bottom: 10 }}
+              key={sign}
+              style={[styles.testChip, { borderColor: colors.cardBorder }]}
+              onPress={() => onTestSign(sign)}
+              hitSlop={{ top: 8, bottom: 8 }}
               accessibilityRole="button"
-              accessibilityLabel={`Test sign ${word}`}>
-              <Text style={[styles.testChipText, { color: colors.text }]}>
-                {word}
-              </Text>
-            </TouchableOpacity>
-          ))}
-          {quickLetters.map((char) => (
-            <TouchableOpacity
-              key={char}
-              style={[styles.testChip, { backgroundColor: colors.backgroundSelected }]}
-              onPress={() => onTestSign?.(char)}
-              hitSlop={{ top: 10, bottom: 10 }}
-              accessibilityRole="button"
-              accessibilityLabel={`Test sign ${char}`}>
-              <Text style={[styles.testChipText, { color: colors.text }]}>
-                {char}
-              </Text>
+              accessibilityLabel={`Test sign ${sign}`}>
+              <Text style={[Type.meta, { color: colors.text }]}>{sign}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
-      </View>
+      )}
 
-      {/* Sentence Display Area */}
+      {/* The sentence so far. The yellow bar marks it as the live text. */}
       <View
-        style={[
-          styles.textDisplayBox,
-          {
-            backgroundColor: colors.background,
-            borderColor: colors.cardBorder,
-          },
-        ]}>
+        style={[styles.sentenceBox, { backgroundColor: colors.background }]}
+        accessibilityLiveRegion="polite">
+        <View style={[styles.liveBar, { backgroundColor: colors.highlight }]} />
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.textScrollContent}>
-          {sentence.length > 0 ? (
-            <Text style={[styles.sentenceText, { color: colors.text }]}>
-              {sentence}
+          contentContainerStyle={styles.sentenceScroll}>
+          {isEmpty ? (
+            <Text style={[Type.body, { color: colors.textSecondary }]}>
+              Signs you make appear here as text
             </Text>
           ) : (
-            <Text
-              style={[
-                styles.placeholderText,
-                { color: colors.textSecondary },
-              ]}>
-              Recognized signs will form a sentence here...
-            </Text>
+            <Text style={[styles.sentenceText, { color: colors.text }]}>{sentence}</Text>
           )}
         </ScrollView>
       </View>
 
-      {/* Controls Bar */}
-      <View style={styles.controlsRow}>
+      <View style={styles.controls}>
         <TouchableOpacity
           style={[
-            styles.speakButton,
-            { backgroundColor: colors.primary },
-            sentence.length === 0 && styles.disabledButton,
+            styles.speakBtn,
+            { backgroundColor: colors.primarySolid },
+            isEmpty && !isSpeaking && styles.disabled,
           ]}
           onPress={handleSpeak}
-          disabled={sentence.length === 0}
-          activeOpacity={0.8}
+          disabled={isEmpty && !isSpeaking}
+          activeOpacity={0.85}
           accessibilityRole="button"
-          accessibilityLabel="Speak sentence">
-          <Ionicons
-            name={isSpeaking ? 'volume-high' : 'volume-medium'}
-            size={20}
-            color="#FFFFFF"
-          />
-          <Text style={styles.speakButtonText}>
-            {isSpeaking ? 'Speaking...' : 'Speak (Offline)'}
-          </Text>
+          accessibilityState={{ disabled: isEmpty && !isSpeaking }}>
+          <Ionicons name={isSpeaking ? 'stop' : 'volume-high'} size={20} color="#FFFFFF" />
+          <Text style={styles.speakText}>{isSpeaking ? 'Stop' : 'Speak'}</Text>
         </TouchableOpacity>
 
-        <View style={styles.actionButtons}>
-          <TouchableOpacity
-            style={[
-              styles.iconBtn,
-              { backgroundColor: colors.backgroundSelected },
-            ]}
-            onPress={() => onAppendText(' ')}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel="Add space">
-            <Text style={[styles.iconBtnText, { color: colors.text }]}>␣ Space</Text>
-          </TouchableOpacity>
+        <TouchableOpacity
+          style={[secondaryBtn, styles.spaceBtn]}
+          onPress={() => onAppendText(' ')}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Add space">
+          <Text style={[Type.smallStrong, { color: colors.text }]}>Space</Text>
+        </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[
-              styles.iconBtn,
-              { backgroundColor: colors.backgroundSelected },
-              sentence.length === 0 && styles.disabledButton,
-            ]}
-            onPress={onBackspace}
-            disabled={sentence.length === 0}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel="Backspace">
-            <Ionicons name="backspace-outline" size={18} color={colors.text} />
-          </TouchableOpacity>
+        <TouchableOpacity
+          style={[secondaryBtn, isEmpty && styles.disabled]}
+          onPress={onBackspace}
+          disabled={isEmpty}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Delete last letter">
+          <Ionicons name="backspace-outline" size={20} color={colors.text} />
+        </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[
-              styles.iconBtn,
-              { backgroundColor: colors.backgroundSelected },
-              sentence.length === 0 && styles.disabledButton,
-            ]}
-            onPress={onClear}
-            disabled={sentence.length === 0}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel="Clear sentence">
-            <Ionicons name="trash-outline" size={18} color={colors.danger} />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={[secondaryBtn, isEmpty && styles.disabled]}
+          onPress={onClear}
+          disabled={isEmpty}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Clear sentence">
+          <Ionicons name="trash-outline" size={20} color={colors.dangerText} />
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -197,99 +137,71 @@ export const SentenceBuilder: React.FC<SentenceBuilderProps> = ({
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 16,
-    borderTopWidth: 1,
-    gap: 8,
-  },
-  testBarRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  testBarLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  testChipsContainer: {
-    flexDirection: 'row',
-    gap: 6,
-    paddingVertical: 2,
-  },
-  testChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  testChipText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  textDisplayBox: {
-    minHeight: 52,
-    borderWidth: 1,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    justifyContent: 'center',
-  },
-  textScrollContent: {
-    alignItems: 'center',
-  },
-  sentenceText: {
-    fontSize: 20,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  placeholderText: {
-    fontSize: 14,
-    fontStyle: 'italic',
-  },
-  controlsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    paddingTop: 12,
+    paddingBottom: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
     gap: 10,
   },
-  speakButton: {
+  testRow: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  testChip: {
+    borderWidth: 1,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  sentenceBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 56,
+    borderRadius: Radius.control,
+    overflow: 'hidden',
+  },
+  liveBar: {
+    width: 5,
+    alignSelf: 'stretch',
+  },
+  sentenceScroll: {
+    alignItems: 'center',
+    paddingHorizontal: 14,
+  },
+  sentenceText: {
+    fontSize: 24,
+    lineHeight: 30,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  controls: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    minHeight: 44,
-    borderRadius: 12,
-    shadowColor: '#4F46E5',
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 3,
   },
-  speakButtonText: {
+  speakBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 48,
+    borderRadius: Radius.control,
+  },
+  speakText: {
+    ...Type.bodyStrong,
     color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
   },
-  disabledButton: {
-    opacity: 0.5,
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  iconBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    minHeight: 44,
-    minWidth: 44,
-    borderRadius: 10,
+  squareBtn: {
+    height: 48,
+    minWidth: 48,
+    borderRadius: Radius.control,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  iconBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
+  spaceBtn: {
+    paddingHorizontal: 16,
+  },
+  disabled: {
+    opacity: 0.45,
   },
 });

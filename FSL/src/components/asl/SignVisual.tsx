@@ -2,28 +2,23 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '@/constants/theme';
+import { Radius, Type } from '@/constants/theme';
+import { usePalette } from '@/hooks/use-palette';
 import type { ASLSign } from '@/data/aslDictionary';
 
 interface SignVisualProps {
   sign: ASLSign;
   size: number;
-  isDark: boolean;
-  /** Show the "No picture yet" caption under the placeholder icon. */
+  /** Show "No picture yet" under the placeholder icon. */
   showCaption?: boolean;
 }
 
 /**
- * The picture of a sign. Until an image is added to the dictionary entry,
- * shows a neutral placeholder instead of inventing a handshape drawing.
+ * The picture of a sign. Until an image is added to the dictionary entry it shows
+ * a neutral placeholder rather than an invented handshape drawing.
  */
-export const SignVisual: React.FC<SignVisualProps> = ({
-  sign,
-  size,
-  isDark,
-  showCaption = false,
-}) => {
-  const colors = Colors[isDark ? 'dark' : 'light'];
+export const SignVisual: React.FC<SignVisualProps> = ({ sign, size, showCaption = false }) => {
+  const { colors } = usePalette();
 
   if (sign.image) {
     return (
@@ -41,24 +36,17 @@ export const SignVisual: React.FC<SignVisualProps> = ({
       style={[
         styles.frame,
         styles.placeholder,
-        {
-          width: size,
-          height: size,
-          backgroundColor: colors.backgroundSelected,
-          borderColor: colors.cardBorder,
-        },
+        { width: size, height: size, backgroundColor: colors.backgroundSelected },
       ]}
       accessible
       accessibilityLabel={`No picture yet for ${sign.name}`}>
       <Ionicons
         name="hand-left-outline"
-        size={Math.round(size * 0.4)}
+        size={Math.round(size * 0.38)}
         color={colors.textSecondary}
       />
       {showCaption && (
-        <Text style={[styles.caption, { color: colors.textSecondary }]}>
-          No picture yet
-        </Text>
+        <Text style={[Type.meta, { color: colors.textSecondary }]}>No picture yet</Text>
       )}
     </View>
   );
@@ -66,17 +54,11 @@ export const SignVisual: React.FC<SignVisualProps> = ({
 
 const styles = StyleSheet.create({
   frame: {
-    borderRadius: 12,
+    borderRadius: Radius.control,
   },
   placeholder: {
-    borderWidth: 1,
-    borderStyle: 'dashed',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 4,
-  },
-  caption: {
-    fontSize: 12,
-    fontWeight: '600',
   },
 });

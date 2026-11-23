@@ -1,415 +1,374 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
+  FlatList,
+  Modal,
+  Platform,
+  ScrollView,
   StyleSheet,
-  View,
   Text,
   TextInput,
   TouchableOpacity,
-  FlatList,
-  useColorScheme,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '@/constants/theme';
-import {
-  ALL_ASL_SIGNS,
-  ASLSign,
-} from '@/data/aslDictionary';
+import { Palette, Radius, Type } from '@/constants/theme';
+import { usePalette } from '@/hooks/use-palette';
+import { ALL_ASL_SIGNS, ASLSign } from '@/data/aslDictionary';
 import { SpeechService } from '@/services/speechService';
 import { SignVisual } from '@/components/asl/SignVisual';
+import { ScreenHeader } from '@/components/ScreenHeader';
+
+type Filter = 'all' | ASLSign['category'];
+
+const FILTERS: { id: Filter; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'alphabet', label: 'Letters' },
+  { id: 'numbers', label: 'Numbers' },
+  { id: 'common', label: 'Everyday' },
+  { id: 'emergency', label: 'Emergency' },
+];
+
+const CATEGORY_NAMES: Record<ASLSign['category'], string> = {
+  alphabet: 'Letter',
+  numbers: 'Number',
+  common: 'Everyday word',
+  emergency: 'Emergency',
+};
+
+const categoryColor = (category: ASLSign['category'], colors: Palette) =>
+  category === 'emergency' ? colors.dangerText : colors.textSecondary;
 
 export default function DictionaryScreen() {
-  const scheme = useColorScheme();
-  const isDark = scheme === 'dark';
-  const colors = Colors[isDark ? 'dark' : 'light'];
+  const { colors } = usePalette();
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<Filter>('all');
+  const [openSign, setOpenSign] = useState<ASLSign | null>(null);
+  const [searchFocused, setSearchFocused] = useState(false);
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<
-    'all' | 'alphabet' | 'numbers' | 'common' | 'emergency'
-  >('all');
-
-  const categories = [
-    { id: 'all', label: 'All Signs' },
-    { id: 'alphabet', label: 'Letters (A-Z)' },
-    { id: 'numbers', label: 'Numbers (0-9)' },
-    { id: 'common', label: 'Daily Words' },
-    { id: 'emergency', label: 'Emergency' },
-  ] as const;
-
-  const filteredSigns = useMemo(() => {
-    return ALL_ASL_SIGNS.filter((sign) => {
-      const matchesCategory =
-        selectedCategory === 'all' || sign.category === selectedCategory;
-      const matchesSearch =
-        sign.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        sign.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        sign.handshape.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesCategory && matchesSearch;
-    });
-  }, [searchQuery, selectedCategory]);
-
-  const handleSpeakSign = (sign: ASLSign) => {
-    SpeechService.speak(sign.name);
-  };
-
-  // `text` is safe for small text on the card and on its own tint;
-  // `solid` is a fill that carries white text. Both meet 4.5:1.
-  const getCategoryColors = (category: ASLSign['category']) => {
-    switch (category) {
-      case 'emergency':
-        return { text: colors.dangerText, solid: colors.dangerSolid };
-      case 'common':
-        return { text: colors.successText, solid: colors.successSolid };
-      case 'numbers':
-        return { text: colors.warningText, solid: colors.warningSolid };
-      case 'alphabet':
-      default:
-        return { text: colors.primaryText, solid: colors.primarySolid };
-    }
-  };
-
-  const renderSignCard = ({ item }: { item: ASLSign }) => {
-    const { text: badgeColor } = getCategoryColors(item.category);
-
-    return (
-      <View
-        style={[
-          styles.signCard,
-          {
-            backgroundColor: colors.card,
-            borderColor: colors.cardBorder,
-          },
-        ]}>
-        {/* Card Header */}
-        <View style={styles.cardHeader}>
-          <View style={styles.badgeRow}>
-            <SignVisual sign={item} size={72} isDark={isDark} />
-            <View style={styles.titleContainer}>
-              <Text style={[styles.signName, { color: colors.text }]}>
-                {item.name}
-              </Text>
-              <View
-                style={[
-                  styles.categoryTag,
-                  { backgroundColor: `${badgeColor}20` },
-                ]}>
-                <Text style={[styles.categoryTagText, { color: badgeColor }]}>
-                  {item.category.toUpperCase()}
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          <TouchableOpacity
-            style={[styles.speakIconBtn, { backgroundColor: colors.backgroundSelected }]}
-            onPress={() => handleSpeakSign(item)}
-            accessibilityRole="button"
-            accessibilityLabel={`Speak ${item.name}`}>
-            <Ionicons name="volume-medium-outline" size={20} color={colors.text} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Description & Guide */}
-        <View style={styles.cardBody}>
-          <View style={styles.detailRow}>
-            <Ionicons name="hand-right-outline" size={16} color={badgeColor} />
-            <Text style={[styles.detailText, { color: colors.text }]}>
-              <Text style={styles.boldLabel}>Handshape: </Text>
-              {item.handshape}
-            </Text>
-          </View>
-
-          <View style={styles.detailRow}>
-            <Ionicons name="information-circle-outline" size={16} color={colors.textSecondary} />
-            <Text style={[styles.detailText, { color: colors.textSecondary }]}>
-              <Text style={styles.boldLabel}>How to Form: </Text>
-              {item.description}
-            </Text>
-          </View>
-
-          <View style={styles.detailRow}>
-            <Ionicons name="swap-horizontal-outline" size={16} color={colors.textSecondary} />
-            <Text style={[styles.detailText, { color: colors.textSecondary }]}>
-              <Text style={styles.boldLabel}>Movement: </Text>
-              {item.movement}
-            </Text>
-          </View>
-
-          {item.tips && (
-            <View
-              style={[
-                styles.tipBox,
-                { backgroundColor: colors.backgroundSelected },
-              ]}>
-              <Ionicons name="bulb-outline" size={14} color={colors.warning} />
-              <Text style={[styles.tipText, { color: colors.textSecondary }]}>
-                {item.tips}
-              </Text>
-            </View>
-          )}
-        </View>
-      </View>
+  const results = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return ALL_ASL_SIGNS.filter(
+      (sign) =>
+        (filter === 'all' || sign.category === filter) &&
+        (!q ||
+          sign.name.toLowerCase().includes(q) ||
+          sign.description.toLowerCase().includes(q) ||
+          sign.handshape.toLowerCase().includes(q))
     );
-  };
+  }, [query, filter]);
 
   return (
-    <SafeAreaView
-      edges={['top']}
-      style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>
-            ASL Dictionary
-          </Text>
-          <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
-            Offline guide for signs, fingerspelling & numbers
-          </Text>
-        </View>
-      </View>
+    <SafeAreaView edges={['top']} style={[styles.flex, { backgroundColor: colors.background }]}>
+      <ScreenHeader title="Dictionary" />
 
-      {/* Search Bar */}
+      {/* The whole field shows focus, so the input's own browser outline is turned off. */}
       <View
         style={[
-          styles.searchBox,
+          styles.search,
           {
             backgroundColor: colors.backgroundElement,
-            borderColor: colors.cardBorder,
+            borderColor: searchFocused ? colors.primaryText : 'transparent',
           },
         ]}>
-        <Ionicons name="search" size={18} color={colors.textSecondary} />
+        <Ionicons name="search" size={20} color={colors.textSecondary} />
         <TextInput
           style={[styles.searchInput, { color: colors.text }]}
-          placeholder="Search signs, handshapes, letters..."
+          placeholder="Search letters, numbers or words"
           placeholderTextColor={colors.textSecondary}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
+          value={query}
+          onChangeText={setQuery}
+          autoCorrect={false}
+          returnKeyType="search"
+          onFocus={() => setSearchFocused(true)}
+          onBlur={() => setSearchFocused(false)}
+          accessibilityLabel="Search signs"
         />
-        {searchQuery.length > 0 && (
+        {query.length > 0 && (
           <TouchableOpacity
-            onPress={() => setSearchQuery('')}
-            hitSlop={13}
+            onPress={() => setQuery('')}
+            hitSlop={12}
             accessibilityRole="button"
             accessibilityLabel="Clear search">
-            <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
+            <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
         )}
       </View>
 
-      {/* Category Pills */}
-      <View style={styles.categoriesWrapper}>
-        <FlatList
+      <View>
+        <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          data={categories}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.categoryList}
-          renderItem={({ item }) => {
-            const isSelected = selectedCategory === item.id;
+          contentContainerStyle={styles.filters}>
+          {FILTERS.map((f) => {
+            const selected = filter === f.id;
             return (
               <TouchableOpacity
+                key={f.id}
                 style={[
-                  styles.categoryPill,
-                  {
-                    backgroundColor: isSelected
-                      ? colors.primary
-                      : colors.backgroundElement,
-                    borderColor: isSelected
-                      ? colors.primary
-                      : colors.cardBorder,
-                  },
+                  styles.filter,
+                  { backgroundColor: selected ? colors.text : colors.backgroundElement },
                 ]}
-                onPress={() => setSelectedCategory(item.id)}
-                hitSlop={{ top: 5, bottom: 5 }}
+                onPress={() => setFilter(f.id)}
                 accessibilityRole="button"
-                accessibilityState={{ selected: isSelected }}>
+                accessibilityState={{ selected }}>
                 <Text
-                  style={[
-                    styles.categoryPillText,
-                    {
-                      color: isSelected ? '#FFFFFF' : colors.textSecondary,
-                      fontWeight: isSelected ? '700' : '500',
-                    },
-                  ]}>
-                  {item.label}
+                  style={[Type.smallStrong, { color: selected ? colors.background : colors.text }]}>
+                  {f.label}
                 </Text>
               </TouchableOpacity>
             );
-          }}
-        />
+          })}
+        </ScrollView>
       </View>
 
-      {/* Signs List */}
       <FlatList
-        data={filteredSigns}
+        data={results}
         keyExtractor={(item) => item.id}
-        renderItem={renderSignCard}
-        contentContainerStyle={styles.signsList}
+        contentContainerStyle={styles.list}
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        renderItem={({ item, index }) => (
+          <TouchableOpacity
+            style={[
+              styles.row,
+              { backgroundColor: colors.backgroundElement },
+              index === 0 && styles.rowFirst,
+              index === results.length - 1 && styles.rowLast,
+              index > 0 && { borderTopColor: colors.cardBorder, borderTopWidth: StyleSheet.hairlineWidth },
+            ]}
+            onPress={() => setOpenSign(item)}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={`${item.name}, ${CATEGORY_NAMES[item.category]}`}
+            accessibilityHint="Opens how to sign it">
+            <SignVisual sign={item} size={52} />
+            <View style={styles.flex}>
+              <View style={styles.nameRow}>
+                <Text style={[Type.bodyStrong, { color: colors.text }]}>{item.name}</Text>
+                {item.category === 'emergency' && (
+                  <Ionicons name="alert-circle" size={16} color={colors.dangerText} />
+                )}
+              </View>
+              <Text style={[Type.small, { color: colors.textSecondary }]} numberOfLines={1}>
+                {item.handshape}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
+        )}
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons
-              name="search-outline"
-              size={48}
-              color={colors.textSecondary}
-            />
-            <Text style={[styles.emptyTitle, { color: colors.text }]}>
-              No signs found
+          <View style={styles.empty}>
+            <Text style={[Type.heading, { color: colors.text }]}>
+              No signs match “{query.trim()}”
             </Text>
-            <Text
-              style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
-              Try searching for another letter or word
+            <Text style={[Type.body, styles.centerText, { color: colors.textSecondary }]}>
+              {filter === 'all'
+                ? 'Check the spelling, or try a single letter.'
+                : `Nothing in ${FILTERS.find((f) => f.id === filter)?.label}. Try searching all signs.`}
             </Text>
+            <TouchableOpacity
+              style={[styles.secondaryBtn, { backgroundColor: colors.primaryLight }]}
+              onPress={() => {
+                setQuery('');
+                setFilter('all');
+              }}
+              accessibilityRole="button">
+              <Text style={[Type.smallStrong, { color: colors.primaryText }]}>Clear search</Text>
+            </TouchableOpacity>
           </View>
         }
       />
+
+      <SignSheet sign={openSign} onClose={() => setOpenSign(null)} />
     </SafeAreaView>
   );
 }
 
+function SignSheet({ sign, onClose }: { sign: ASLSign | null; onClose: () => void }) {
+  const { colors } = usePalette();
+
+  return (
+    <Modal
+      visible={sign !== null}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}>
+      {sign && (
+        <View style={[styles.flex, { backgroundColor: colors.background }]}>
+          <View style={styles.sheetBar}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={styles.closeBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Close">
+              <Text style={[Type.bodyStrong, { color: colors.primaryText }]}>Done</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={styles.sheetContent}>
+            <View style={styles.sheetVisual}>
+              <SignVisual sign={sign} size={200} showCaption />
+            </View>
+            <View style={styles.sheetTitleRow}>
+              <View style={styles.flex}>
+                <Text style={[Type.title, { color: colors.text }]} accessibilityRole="header">
+                  {sign.name}
+                </Text>
+                <Text style={[Type.small, { color: categoryColor(sign.category, colors) }]}>
+                  {CATEGORY_NAMES[sign.category]}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.speakBtn, { backgroundColor: colors.primaryLight }]}
+                onPress={() => SpeechService.speak(sign.name)}
+                accessibilityRole="button"
+                accessibilityLabel={`Say ${sign.name} aloud`}>
+                <Ionicons name="volume-high" size={22} color={colors.primaryText} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={[styles.detailGroup, { backgroundColor: colors.backgroundElement }]}>
+              <Detail label="Handshape" text={sign.handshape} />
+              <Detail label="How to form it" text={sign.description} divider />
+              <Detail label="Movement" text={sign.movement} divider />
+            </View>
+
+            {sign.tips ? (
+              <View style={[styles.tip, { backgroundColor: colors.primaryLight }]}>
+                <Ionicons name="bulb-outline" size={20} color={colors.primaryText} />
+                <Text style={[Type.body, styles.flex, { color: colors.text }]}>{sign.tips}</Text>
+              </View>
+            ) : null}
+          </ScrollView>
+        </View>
+      )}
+    </Modal>
+  );
+}
+
+function Detail({ label, text, divider }: { label: string; text: string; divider?: boolean }) {
+  const { colors } = usePalette();
+  return (
+    <View
+      style={[
+        styles.detail,
+        divider && { borderTopColor: colors.cardBorder, borderTopWidth: StyleSheet.hairlineWidth },
+      ]}>
+      <Text style={[Type.meta, { color: colors.textSecondary }]}>{label}</Text>
+      <Text style={[Type.body, { color: colors.text }]}>{text}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 8,
-  },
-  headerTitle: {
-    fontSize: 26,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-  },
-  headerSubtitle: {
-    fontSize: 13,
-    marginTop: 2,
-  },
-  searchBox: {
+  flex: { flex: 1 },
+  centerText: { textAlign: 'center' },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  search: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 20,
-    marginVertical: 10,
-    paddingHorizontal: 14,
-    height: 46,
-    borderRadius: 14,
-    borderWidth: 1,
     gap: 10,
+    marginHorizontal: 20,
+    marginTop: 4,
+    paddingHorizontal: 14,
+    height: 48,
+    borderRadius: Radius.control,
+    borderWidth: 2,
   },
   searchInput: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 16,
+    height: '100%',
+    ...Platform.select({ web: { outlineStyle: 'none' } as object }),
   },
-  categoriesWrapper: {
-    marginBottom: 6,
-  },
-  categoryList: {
-    paddingHorizontal: 20,
-    gap: 8,
-  },
-  categoryPill: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  categoryPillText: {
-    fontSize: 13,
-  },
-  signsList: {
+  filters: {
     paddingHorizontal: 20,
     paddingVertical: 12,
+    gap: 8,
+  },
+  filter: {
+    height: 40,
+    paddingHorizontal: 16,
+    borderRadius: Radius.pill,
+    justifyContent: 'center',
+  },
+  list: {
+    paddingHorizontal: 20,
+    paddingBottom: 32,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 14,
-    paddingBottom: 40,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    minHeight: 72,
   },
-  signCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 16,
-    gap: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+  rowFirst: {
+    borderTopLeftRadius: Radius.card,
+    borderTopRightRadius: Radius.card,
   },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  rowLast: {
+    borderBottomLeftRadius: Radius.card,
+    borderBottomRightRadius: Radius.card,
+  },
+  empty: {
     alignItems: 'center',
-  },
-  badgeRow: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  titleContainer: {
-    flex: 1,
-    gap: 3,
-  },
-  signName: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  categoryTag: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-  },
-  categoryTagText: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  speakIconBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cardBody: {
-    gap: 8,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-  },
-  detailText: {
-    flex: 1,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  boldLabel: {
-    fontWeight: '700',
-  },
-  tipBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
-    marginTop: 4,
-  },
-  tipText: {
-    fontSize: 12,
-    flex: 1,
-    fontStyle: 'italic',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
+    paddingVertical: 48,
+    paddingHorizontal: 16,
     gap: 10,
   },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+  secondaryBtn: {
+    height: 44,
+    paddingHorizontal: 18,
+    borderRadius: Radius.pill,
+    justifyContent: 'center',
+    marginTop: 6,
   },
-  emptySubtitle: {
-    fontSize: 13,
+  sheetBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 8,
+    paddingTop: 8,
+  },
+  closeBtn: {
+    minHeight: 44,
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+  },
+  sheetContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+    gap: 20,
+  },
+  sheetVisual: {
+    alignItems: 'center',
+  },
+  sheetTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  speakBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  detailGroup: {
+    borderRadius: Radius.card,
+    overflow: 'hidden',
+  },
+  detail: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 4,
+  },
+  tip: {
+    flexDirection: 'row',
+    gap: 12,
+    padding: 16,
+    borderRadius: Radius.card,
   },
 });
