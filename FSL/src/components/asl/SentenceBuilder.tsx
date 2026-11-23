@@ -69,6 +69,7 @@ export const SentenceBuilder: React.FC<SentenceBuilderProps> = ({
       {/* The sentence so far. The yellow bar marks it as the live text. */}
       <View
         style={[styles.sentenceBox, { backgroundColor: colors.background }]}
+        testID="sentence"
         accessibilityLiveRegion="polite">
         <View style={[styles.liveBar, { backgroundColor: colors.highlight }]} />
         <ScrollView

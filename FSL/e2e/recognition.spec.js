@@ -54,9 +54,10 @@ async function runClip({ file, label }) {
   const page = await context.newPage();
   await page.goto(URL);
   // the model loads once; give it time, then up to 20 s of the looping clip
+  // only the sentence counts (the dev test chips show some labels too)
   const found = await page
-    .getByText(label, { exact: true })
-    .first()
+    .getByTestId('sentence')
+    .getByText(label)
     .waitFor({ timeout: 45000 })
     .then(() => true)
     .catch(() => false);

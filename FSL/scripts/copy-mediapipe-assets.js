@@ -12,6 +12,8 @@ const wasmDir = path.join(root, 'node_modules', '@mediapipe', 'tasks-vision', 'w
 for (const f of fs.readdirSync(wasmDir)) {
   if (f.startsWith('vision_wasm_internal')) fs.copyFileSync(path.join(wasmDir, f), path.join(out, f));
 }
+// The library itself is loaded by the browser at runtime (Metro can't bundle its dynamic import()).
+fs.copyFileSync(path.join(root, 'node_modules', '@mediapipe', 'tasks-vision', 'vision_bundle.mjs'), path.join(out, 'vision_bundle.mjs'));
 const models = path.join(root, '..', 'ml', 'models');
 for (const f of ['hand_landmarker.task', 'pose_landmarker_lite.task']) {
   fs.copyFileSync(path.join(models, f), path.join(out, f));

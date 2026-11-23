@@ -4,17 +4,44 @@
  * own public/mediapipe folder (scripts/copy-mediapipe-assets.js), so this
  * works with no internet connection.
  */
-import { FilesetResolver, HandLandmarker, PoseLandmarker } from '@mediapipe/tasks-vision';
+import type { HandLandmarker, PoseLandmarker } from '@mediapipe/tasks-vision';
 import { frameFeatures } from './features.ts';
 import type { HandInput, HandPointSource, Vec3 } from './types.ts';
 
 const BASE = '/mediapipe';
+
+type Vision = typeof import('@mediapipe/tasks-vision');
+/**
+ * MediaPipe is not bundled: its code contains import() of a computed URL,
+ * which Metro rejects. The browser loads public/mediapipe/vision_bundle.mjs
+ * itself. Wrapped in Function so Metro doesn't try to resolve this import().
+ */
+const importAtRuntime = new Function('url', 'return import(url)') as (url: string) => Promise<Vision>;
 const FRAME_MS = 1000 / 30; // match the 30 fps the model was trained on
 
 let landmarkers: Promise<{ hands: HandLandmarker; pose: PoseLandmarker }> | null = null;
 
+/**
+ * MediaPipe's WASM writes informational lines ("INFO: Created TensorFlow Lite
+ * XNNPACK delegate", glog "I0000"/"W0000" lines) to console.error, which the dev
+ * build shows as a red error toast. Send those to console.info; real errors pass.
+ */
+let consoleFiltered = false;
+function quietMediaPipeLogs() {
+  if (consoleFiltered) return;
+  consoleFiltered = true;
+  const original = console.error.bind(console);
+  console.error = (...args: unknown[]) => {
+    const first = typeof args[0] === 'string' ? args[0] : '';
+    if (/^(INFO: |[IW]\d{4} )/.test(first)) return console.info(...args);
+    original(...args);
+  };
+}
+
 function loadLandmarkers() {
+  quietMediaPipeLogs();
   landmarkers ??= (async () => {
+    const { FilesetResolver, HandLandmarker, PoseLandmarker } = await importAtRuntime(`${BASE}/vision_bundle.mjs`);
     const fileset = await FilesetResolver.forVisionTasks(BASE);
     const [hands, pose] = await Promise.all([
       HandLandmarker.createFromOptions(fileset, {
