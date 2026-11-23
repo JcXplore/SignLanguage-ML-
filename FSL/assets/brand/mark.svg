@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- SignBridge mark: a raised open hand whose palm is a bridge.
+       Right hand, palm toward the viewer, so the thumb is on the left.
+       Symbol color #F6C400 (sun yellow); place on #1F3A93 (deep blue). -->
+  <defs>
+    <mask id="arch">
+      <rect width="1024" height="1024" fill="#fff"/>
+      <path d="M458 780 V744 a78 78 0 0 1 156 0 V780 Z" fill="#000"/>
+    </mask>
+  </defs>
+  <g transform="translate(41 23)" mask="url(#arch)">
+    <g stroke="#F6C400" stroke-width="84" stroke-linecap="round" fill="none">
+      <line x1="380" y1="300" x2="380" y2="600"/>
+      <line x1="484" y1="250" x2="484" y2="600"/>
+      <line x1="588" y1="280" x2="588" y2="600"/>
+      <line x1="692" y1="350" x2="692" y2="600"/>
+      <line x1="372" y1="660" x2="262" y2="500"/>
+    </g>
+    <path d="M338 520 H734 V700 Q734 770 664 770 H408 Q338 770 338 700 Z" fill="#F6C400"/>
+  </g>
+</svg>
