@@ -16,6 +16,7 @@ import {
   ASLSign,
 } from '@/data/aslDictionary';
 import { SpeechService } from '@/services/speechService';
+import { SignVisual } from '@/components/asl/SignVisual';
 
 export default function DictionaryScreen() {
   const scheme = useColorScheme();
@@ -51,22 +52,24 @@ export default function DictionaryScreen() {
     SpeechService.speak(sign.name);
   };
 
-  const getCategoryColor = (category: ASLSign['category']) => {
+  // `text` is safe for small text on the card and on its own tint;
+  // `solid` is a fill that carries white text. Both meet 4.5:1.
+  const getCategoryColors = (category: ASLSign['category']) => {
     switch (category) {
       case 'emergency':
-        return colors.danger;
+        return { text: colors.dangerText, solid: colors.dangerSolid };
       case 'common':
-        return colors.success;
+        return { text: colors.successText, solid: colors.successSolid };
       case 'numbers':
-        return colors.warning;
+        return { text: colors.warningText, solid: colors.warningSolid };
       case 'alphabet':
       default:
-        return colors.primary;
+        return { text: colors.primaryText, solid: colors.primarySolid };
     }
   };
 
   const renderSignCard = ({ item }: { item: ASLSign }) => {
-    const badgeColor = getCategoryColor(item.category);
+    const { text: badgeColor } = getCategoryColors(item.category);
 
     return (
       <View
@@ -80,11 +83,7 @@ export default function DictionaryScreen() {
         {/* Card Header */}
         <View style={styles.cardHeader}>
           <View style={styles.badgeRow}>
-            <View style={[styles.largeBadge, { backgroundColor: badgeColor }]}>
-              <Text style={styles.largeBadgeText}>
-                {item.symbol || item.name.charAt(0)}
-              </Text>
-            </View>
+            <SignVisual sign={item} size={72} isDark={isDark} />
             <View style={styles.titleContainer}>
               <Text style={[styles.signName, { color: colors.text }]}>
                 {item.name}
@@ -104,6 +103,7 @@ export default function DictionaryScreen() {
           <TouchableOpacity
             style={[styles.speakIconBtn, { backgroundColor: colors.backgroundSelected }]}
             onPress={() => handleSpeakSign(item)}
+            accessibilityRole="button"
             accessibilityLabel={`Speak ${item.name}`}>
             <Ionicons name="volume-medium-outline" size={20} color={colors.text} />
           </TouchableOpacity>
@@ -186,7 +186,11 @@ export default function DictionaryScreen() {
           onChangeText={setSearchQuery}
         />
         {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery('')}>
+          <TouchableOpacity
+            onPress={() => setSearchQuery('')}
+            hitSlop={13}
+            accessibilityRole="button"
+            accessibilityLabel="Clear search">
             <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
           </TouchableOpacity>
         )}
@@ -215,7 +219,10 @@ export default function DictionaryScreen() {
                       : colors.cardBorder,
                   },
                 ]}
-                onPress={() => setSelectedCategory(item.id)}>
+                onPress={() => setSelectedCategory(item.id)}
+                hitSlop={{ top: 5, bottom: 5 }}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isSelected }}>
                 <Text
                   style={[
                     styles.categoryPillText,
@@ -331,23 +338,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   badgeRow: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
-  largeBadge: {
-    width: 46,
-    height: 46,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  largeBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 22,
-    fontWeight: '800',
-  },
   titleContainer: {
+    flex: 1,
     gap: 3,
   },
   signName: {
@@ -366,9 +363,9 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   speakIconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
   },

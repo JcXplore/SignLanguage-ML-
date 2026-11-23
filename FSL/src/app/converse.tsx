@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/theme';
 import { SpeechService } from '@/services/speechService';
 import { ASL_ALPHABET, ASL_COMMON_WORDS } from '@/data/aslDictionary';
+import { SignVisual } from '@/components/asl/SignVisual';
 
 export default function ConverseScreen() {
   const scheme = useColorScheme();
@@ -64,8 +65,10 @@ export default function ConverseScreen() {
         </View>
 
         <View style={styles.statusChip}>
-          <Ionicons name="people" size={14} color="#10B981" />
-          <Text style={styles.statusChipText}>Face-to-Face</Text>
+          <Ionicons name="people" size={14} color={colors.successText} />
+          <Text style={[styles.statusChipText, { color: colors.successText }]}>
+            Face-to-Face
+          </Text>
         </View>
       </View>
 
@@ -87,7 +90,10 @@ export default function ConverseScreen() {
             </Text>
             <TouchableOpacity
               onPress={() => SpeechService.speak(activeMessage)}
-              style={styles.speakPill}>
+              style={styles.speakPill}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Read message aloud">
               <Ionicons name="volume-medium" size={16} color="#FFFFFF" />
               <Text style={styles.speakPillText}>Voice Out</Text>
             </TouchableOpacity>
@@ -122,18 +128,18 @@ export default function ConverseScreen() {
                       borderColor: colors.cardBorder,
                     },
                   ]}>
-                  <View
-                    style={[
-                      styles.letterBadge,
-                      { backgroundColor: colors.primary },
-                    ]}>
-                    <Text style={styles.letterBadgeText}>{char}</Text>
-                  </View>
-                  <Text
-                    numberOfLines={2}
-                    style={[styles.letterDesc, { color: colors.textSecondary }]}>
-                    {signDef?.handshape || 'Hand shape'}
+                  {signDef ? (
+                    <SignVisual sign={signDef} size={64} isDark={isDark} />
+                  ) : null}
+                  <Text style={[styles.letterChar, { color: colors.text }]}>
+                    {char}
                   </Text>
+                  {signDef ? (
+                    <Text
+                      style={[styles.letterDesc, { color: colors.textSecondary }]}>
+                      {signDef.handshape}
+                    </Text>
+                  ) : null}
                 </View>
               );
             })}
@@ -157,7 +163,9 @@ export default function ConverseScreen() {
                   },
                 ]}
                 onPress={() => handleQuickResponse(item.text)}
-                activeOpacity={0.7}>
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={`Say: ${item.text}`}>
                 <View style={styles.chipSignBadge}>
                   <Text style={styles.chipSignText}>{item.sign}</Text>
                 </View>
@@ -196,6 +204,7 @@ export default function ConverseScreen() {
             },
           ]}
           placeholder="Type here to speak or display in ASL..."
+          accessibilityLabel="Message to show"
           placeholderTextColor={colors.textSecondary}
           value={inputMessage}
           onChangeText={setInputMessage}
@@ -206,7 +215,10 @@ export default function ConverseScreen() {
           style={[styles.sendButton, { backgroundColor: colors.primary }]}
           onPress={handleSend}
           disabled={!inputMessage.trim()}
-          activeOpacity={0.8}>
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Show message"
+          accessibilityState={{ disabled: !inputMessage.trim() }}>
           <Ionicons name="arrow-up" size={20} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
@@ -245,7 +257,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(16, 185, 129, 0.15)',
   },
   statusChipText: {
-    color: '#10B981',
     fontSize: 12,
     fontWeight: '700',
   },
@@ -312,27 +323,20 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   letterCard: {
-    width: 100,
+    width: 120,
     padding: 12,
     borderRadius: 16,
     borderWidth: 1,
     alignItems: 'center',
     gap: 8,
   },
-  letterBadge: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  letterBadgeText: {
-    color: '#FFFFFF',
+  letterChar: {
     fontSize: 22,
     fontWeight: '800',
   },
   letterDesc: {
-    fontSize: 11,
+    fontSize: 12,
+    lineHeight: 16,
     textAlign: 'center',
   },
   quickSection: {

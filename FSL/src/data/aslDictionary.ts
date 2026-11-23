@@ -1,3 +1,5 @@
+import type { ImageSourcePropType } from 'react-native';
+
 export interface ASLSign {
   id: string;
   name: string;
@@ -7,6 +9,11 @@ export interface ASLSign {
   movement: string;
   tips: string;
   handshape: string;
+  /**
+   * Photo or illustration of the sign, e.g. require('@/assets/signs/a.png').
+   * Must show the FSL form of the sign. Screens show a placeholder until this is set.
+   */
+  image?: ImageSourcePropType;
 }
 
 export const ASL_ALPHABET: ASLSign[] = [

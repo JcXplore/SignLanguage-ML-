@@ -12,6 +12,8 @@ interface DetectionHUDProps {
   hapticEnabled: boolean;
   onToggleHaptic: () => void;
   isDark: boolean;
+  /** False while no recognition model is connected: shows a demo notice, not results. */
+  recognitionEnabled: boolean;
 }
 
 export const DetectionHUD: React.FC<DetectionHUDProps> = ({
@@ -23,6 +25,7 @@ export const DetectionHUD: React.FC<DetectionHUDProps> = ({
   hapticEnabled,
   onToggleHaptic,
   isDark,
+  recognitionEnabled,
 }) => {
   const colors = Colors[isDark ? 'dark' : 'light'];
 
@@ -42,8 +45,15 @@ export const DetectionHUD: React.FC<DetectionHUDProps> = ({
       {/* Top Header Overlay */}
       <View style={styles.topRow}>
         <View style={styles.offlineBadge}>
-          <View style={styles.offlineDot} />
-          <Text style={styles.offlineText}>100% Offline AI</Text>
+          <View
+            style={[
+              styles.offlineDot,
+              !recognitionEnabled && { backgroundColor: '#F59E0B' },
+            ]}
+          />
+          <Text style={styles.offlineText}>
+            {recognitionEnabled ? 'Works offline' : 'Demo · not reading signs yet'}
+          </Text>
         </View>
 
         <View style={styles.topActions}>
@@ -51,7 +61,9 @@ export const DetectionHUD: React.FC<DetectionHUDProps> = ({
             style={[styles.actionBtn, hapticEnabled && styles.actionBtnActive]}
             onPress={onToggleHaptic}
             activeOpacity={0.7}
-            accessibilityLabel="Toggle vibration feedback">
+            accessibilityRole="switch"
+            accessibilityState={{ checked: hapticEnabled }}
+            accessibilityLabel="Vibrate when a sign is recognized">
             <Ionicons
               name={hapticEnabled ? 'radio' : 'radio-outline'}
               size={18}
@@ -63,6 +75,7 @@ export const DetectionHUD: React.FC<DetectionHUDProps> = ({
             style={styles.actionBtn}
             onPress={onFlipCamera}
             activeOpacity={0.7}
+            accessibilityRole="button"
             accessibilityLabel="Flip camera">
             <Ionicons name="camera-reverse-outline" size={20} color="#FFFFFF" />
           </TouchableOpacity>
@@ -85,13 +98,23 @@ export const DetectionHUD: React.FC<DetectionHUDProps> = ({
       {/* Bottom Mode Switcher & Detection Badge */}
       <View style={styles.bottomSection}>
         {/* Detection Card */}
-        {detectedSign ? (
+        {!recognitionEnabled && !detectedSign ? (
+          <View style={styles.idleCard}>
+            <Ionicons name="information-circle-outline" size={20} color="#FBBF24" />
+            <Text style={styles.idleText}>
+              Sign recognition isn't connected yet
+            </Text>
+          </View>
+        ) : detectedSign ? (
           <View style={styles.detectionCard}>
             <View style={styles.signBadge}>
               <Text style={styles.signBadgeText}>{detectedSign}</Text>
             </View>
             <View style={styles.detectionInfo}>
-              <Text style={styles.detectionTitle}>Recognized Sign</Text>
+              <Text style={styles.detectionTitle}>
+                {recognitionEnabled ? 'Recognized Sign' : 'Test sign (not from camera)'}
+              </Text>
+              {recognitionEnabled && (
               <View style={styles.confidenceRow}>
                 <View style={styles.confidenceTrack}>
                   <View
@@ -105,6 +128,7 @@ export const DetectionHUD: React.FC<DetectionHUDProps> = ({
                   {Math.round(confidence * 100)}%
                 </Text>
               </View>
+              )}
             </View>
           </View>
         ) : (
@@ -118,7 +142,10 @@ export const DetectionHUD: React.FC<DetectionHUDProps> = ({
         <TouchableOpacity
           style={styles.modePill}
           onPress={onToggleMode}
-          activeOpacity={0.8}>
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel={`Recognition mode: ${getModeLabel()}`}
+          accessibilityHint="Switches between letters, numbers and words">
           <Ionicons name="layers-outline" size={16} color="#FFFFFF" />
           <Text style={styles.modePillLabel}>Mode: {getModeLabel()}</Text>
           <Ionicons name="swap-horizontal" size={14} color="#A5B4FC" />
@@ -168,9 +195,9 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   actionBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(15, 23, 42, 0.75)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -313,7 +340,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   idleText: {
-    color: '#94A3B8',
+    color: '#CBD5E1',
     fontSize: 13,
     fontWeight: '500',
   },
@@ -322,7 +349,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#312E81',
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    minHeight: 44,
     borderRadius: 20,
     gap: 8,
     borderWidth: 1,

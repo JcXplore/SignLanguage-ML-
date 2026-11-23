@@ -13,29 +13,65 @@ import { Colors } from '@/constants/theme';
 import { ALL_ASL_SIGNS, ASLSign } from '@/data/aslDictionary';
 import { SpeechService } from '@/services/speechService';
 import { router } from 'expo-router';
+import { SignVisual } from '@/components/asl/SignVisual';
+
+const CATEGORY_LABELS: Record<ASLSign['category'], string> = {
+  alphabet: 'Letter',
+  numbers: 'Number',
+  common: 'Word',
+  emergency: 'Emergency word',
+};
+
+/** Fisher–Yates shuffle; returns a new array. */
+function shuffle<T>(items: readonly T[]): T[] {
+  const result = [...items];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
+/**
+ * Blanks out the answer where a written description names it
+ * (e.g. "a C shape", "L-shape"), so the text doesn't give the answer away.
+ * Single letters/digits match only as capitals, so the article "a" survives.
+ */
+function maskAnswer(text: string, sign: ASLSign): string {
+  const name = sign.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const flags = sign.name.length === 1 ? 'g' : 'gi';
+  return text.replace(new RegExp(`\\b${name}\\b`, flags), '___');
+}
+
+interface Question {
+  sign: ASLSign;
+  options: ASLSign[];
+}
+
+/** The answer plus three random wrong answers from the same category, in random order. */
+function makeQuestion(sign: ASLSign): Question {
+  const distractors = shuffle(
+    ALL_ASL_SIGNS.filter((s) => s.id !== sign.id && s.category === sign.category)
+  ).slice(0, 3);
+  return { sign, options: shuffle([...distractors, sign]) };
+}
 
 export default function PracticeScreen() {
   const scheme = useColorScheme();
   const isDark = scheme === 'dark';
   const colors = Colors[isDark ? 'dark' : 'light'];
 
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [deck, setDeck] = useState<ASLSign[]>(() => shuffle(ALL_ASL_SIGNS));
+  const [position, setPosition] = useState(0);
+  const [questionNumber, setQuestionNumber] = useState(1);
+  const [question, setQuestion] = useState<Question>(() => makeQuestion(deck[0]));
   const [score, setScore] = useState(0);
-  const [streak, setStreak] = useState(3);
+  const [streak, setStreak] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
 
-  const currentSign: ASLSign = ALL_ASL_SIGNS[currentIndex % ALL_ASL_SIGNS.length];
-
-  // Pick 3 distractors for multiple choice quiz
-  const options = React.useMemo(() => {
-    const distractors = ALL_ASL_SIGNS.filter(
-      (s) => s.id !== currentSign.id && s.category === currentSign.category
-    ).slice(0, 3);
-    const combined = [...distractors, currentSign];
-    // Deterministic shuffle based on current sign id length
-    return combined.sort(() => (currentSign.id.charCodeAt(0) % 2 === 0 ? 1 : -1));
-  }, [currentSign]);
+  const currentSign = question.sign;
+  const options = question.options;
 
   const handleSelectOption = (option: ASLSign) => {
     setSelectedOption(option.id);
@@ -53,7 +89,17 @@ export default function PracticeScreen() {
   const handleNext = () => {
     setSelectedOption(null);
     setShowAnswer(false);
-    setCurrentIndex((prev) => (prev + 1) % ALL_ASL_SIGNS.length);
+    let nextDeck = deck;
+    let nextPosition = position + 1;
+    if (nextPosition >= deck.length) {
+      // Went through every sign: start a fresh shuffled round.
+      nextDeck = shuffle(ALL_ASL_SIGNS);
+      nextPosition = 0;
+      setDeck(nextDeck);
+    }
+    setPosition(nextPosition);
+    setQuestionNumber((n) => n + 1);
+    setQuestion(makeQuestion(nextDeck[nextPosition]));
   };
 
   const handleOpenLiveCamera = () => {
@@ -105,36 +151,41 @@ export default function PracticeScreen() {
             },
           ]}>
           <View style={styles.questionBanner}>
-            <Text style={styles.questionBannerText}>
-              IDENTIFY THE SIGN • QUESTION {currentIndex + 1}
+            <Text style={[styles.questionBannerText, { color: colors.primaryText }]}>
+              WHICH {CATEGORY_LABELS[currentSign.category].toUpperCase()} IS THIS? • QUESTION{' '}
+              {questionNumber}
             </Text>
           </View>
 
-          {/* Big Symbol / Sign Name Display */}
+          {/* The sign to identify: picture first, written handshape as backup.
+              The answer itself is never shown here. */}
           <View
             style={[
               styles.signPromptBox,
               { backgroundColor: colors.backgroundSelected },
             ]}>
-            <Text style={[styles.signPromptSymbol, { color: colors.primary }]}>
-              {currentSign.symbol || currentSign.name}
+            <SignVisual sign={currentSign} size={140} isDark={isDark} showCaption />
+            <Text style={[styles.signPromptHandshape, { color: colors.text }]}>
+              {maskAnswer(currentSign.handshape, currentSign)}
             </Text>
-            <Text style={[styles.signPromptCategory, { color: colors.textSecondary }]}>
-              Category: {currentSign.category.toUpperCase()}
+            <Text style={[styles.signPromptDescription, { color: colors.textSecondary }]}>
+              {maskAnswer(currentSign.description, currentSign)}
             </Text>
           </View>
 
           {/* Hint Expander */}
           <TouchableOpacity
             style={styles.hintToggle}
-            onPress={() => setShowAnswer(!showAnswer)}>
+            onPress={() => setShowAnswer(!showAnswer)}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: showAnswer }}>
             <Ionicons
               name={showAnswer ? 'eye-off-outline' : 'bulb-outline'}
               size={18}
-              color={colors.warning}
+              color={colors.warningText}
             />
             <Text style={[styles.hintToggleText, { color: colors.textSecondary }]}>
-              {showAnswer ? 'Hide description' : 'Show description hint'}
+              {showAnswer ? 'Hide hint' : 'Show hint'}
             </Text>
           </TouchableOpacity>
 
@@ -145,11 +196,11 @@ export default function PracticeScreen() {
                 { backgroundColor: colors.backgroundElement },
               ]}>
               <Text style={[styles.answerText, { color: colors.text }]}>
-                {currentSign.description}
+                Movement: {maskAnswer(currentSign.movement, currentSign)}
               </Text>
               <Text
                 style={[styles.movementText, { color: colors.textSecondary }]}>
-                Movement: {currentSign.movement}
+                Tip: {maskAnswer(currentSign.tips, currentSign)}
               </Text>
             </View>
           )}
@@ -187,7 +238,16 @@ export default function PracticeScreen() {
                   ]}
                   onPress={() => handleSelectOption(opt)}
                   disabled={selectedOption !== null}
-                  activeOpacity={0.8}>
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    selectedOption && isCorrect
+                      ? `${opt.name}, correct answer`
+                      : selectedOption && isSelected
+                        ? `${opt.name}, your answer, wrong`
+                        : opt.name
+                  }
+                  accessibilityState={{ disabled: selectedOption !== null, selected: isSelected }}>
                   <Text style={[styles.optionBtnText, { color: textColor }]}>
                     {opt.name}
                   </Text>
@@ -207,7 +267,8 @@ export default function PracticeScreen() {
             <TouchableOpacity
               style={[styles.nextButton, { backgroundColor: colors.primary }]}
               onPress={handleNext}
-              activeOpacity={0.8}>
+              activeOpacity={0.8}
+              accessibilityRole="button">
               <Text style={styles.nextButtonText}>Next Sign</Text>
               <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
             </TouchableOpacity>
@@ -218,7 +279,8 @@ export default function PracticeScreen() {
         <TouchableOpacity
           style={[styles.liveCameraBanner, { backgroundColor: '#1E1B4B' }]}
           onPress={handleOpenLiveCamera}
-          activeOpacity={0.8}>
+          activeOpacity={0.8}
+          accessibilityRole="button">
           <View style={styles.cameraBannerContent}>
             <Ionicons name="camera-reverse" size={28} color="#A5B4FC" />
             <View style={{ flex: 1 }}>
@@ -294,29 +356,32 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.8,
-    color: '#6366F1',
   },
   signPromptBox: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 28,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
     borderRadius: 16,
-    gap: 6,
+    gap: 8,
   },
-  signPromptSymbol: {
-    fontSize: 54,
-    fontWeight: '900',
-    letterSpacing: 1,
+  signPromptHandshape: {
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
   },
-  signPromptCategory: {
-    fontSize: 12,
-    fontWeight: '600',
+  signPromptDescription: {
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
   },
   hintToggle: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     alignSelf: 'center',
+    minHeight: 44,
+    paddingHorizontal: 12,
   },
   hintToggleText: {
     fontSize: 13,

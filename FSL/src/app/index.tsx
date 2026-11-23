@@ -15,6 +15,11 @@ import { DetectionHUD } from '@/components/asl/DetectionHUD';
 import { SentenceBuilder } from '@/components/asl/SentenceBuilder';
 import { SpeechService } from '@/services/speechService';
 
+// No on-device FSL recognition model is connected yet. While this is false the
+// screen says so instead of showing made-up results. Set to true once the model
+// feeds real detections into setDetectedSign / setConfidence.
+const RECOGNITION_ENABLED = false;
+
 export default function CameraTranslatorScreen() {
   const scheme = useColorScheme();
   const isDark = scheme === 'dark';
@@ -26,11 +31,11 @@ export default function CameraTranslatorScreen() {
   const [mode, setMode] = useState<'alphabet' | 'numbers' | 'common'>('alphabet');
   
   // Real-time detection state
-  const [detectedSign, setDetectedSign] = useState<string | null>('A');
-  const [confidence, setConfidence] = useState<number>(0.96);
-  
+  const [detectedSign, setDetectedSign] = useState<string | null>(null);
+  const [confidence, setConfidence] = useState<number>(0);
+
   // Accumulated sentence state
-  const [sentence, setSentence] = useState<string>('HELLO');
+  const [sentence, setSentence] = useState<string>('');
 
   const toggleCameraFacing = () => {
     setFacing((current) => (current === 'back' ? 'front' : 'back'));
@@ -94,15 +99,16 @@ export default function CameraTranslatorScreen() {
             Camera Access Required
           </Text>
           <Text style={[styles.permissionSubtitle, { color: colors.textSecondary }]}>
-            SignBridge needs camera access to recognize your sign language gestures
-            in real time. All processing happens 100% on your device without an internet connection.
+            SignBridge uses your camera to read your signs. Video stays on your
+            phone and is never uploaded.
           </Text>
 
           <TouchableOpacity
             style={[styles.permissionButton, { backgroundColor: colors.primary }]}
             onPress={requestPermission}
-            activeOpacity={0.8}>
-            <Text style={styles.permissionButtonText}>Grant Camera Permission</Text>
+            activeOpacity={0.8}
+            accessibilityRole="button">
+            <Text style={styles.permissionButtonText}>Allow Camera</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -125,6 +131,7 @@ export default function CameraTranslatorScreen() {
           hapticEnabled={hapticEnabled}
           onToggleHaptic={toggleHaptic}
           isDark={isDark}
+          recognitionEnabled={RECOGNITION_ENABLED}
         />
       </View>
 

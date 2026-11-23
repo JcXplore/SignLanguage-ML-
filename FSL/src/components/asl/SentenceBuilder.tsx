@@ -71,7 +71,10 @@ export const SentenceBuilder: React.FC<SentenceBuilderProps> = ({
             <TouchableOpacity
               key={word}
               style={[styles.testChip, { backgroundColor: colors.backgroundSelected }]}
-              onPress={() => onTestSign?.(word)}>
+              onPress={() => onTestSign?.(word)}
+              hitSlop={{ top: 10, bottom: 10 }}
+              accessibilityRole="button"
+              accessibilityLabel={`Test sign ${word}`}>
               <Text style={[styles.testChipText, { color: colors.text }]}>
                 {word}
               </Text>
@@ -81,7 +84,10 @@ export const SentenceBuilder: React.FC<SentenceBuilderProps> = ({
             <TouchableOpacity
               key={char}
               style={[styles.testChip, { backgroundColor: colors.backgroundSelected }]}
-              onPress={() => onTestSign?.(char)}>
+              onPress={() => onTestSign?.(char)}
+              hitSlop={{ top: 10, bottom: 10 }}
+              accessibilityRole="button"
+              accessibilityLabel={`Test sign ${char}`}>
               <Text style={[styles.testChipText, { color: colors.text }]}>
                 {char}
               </Text>
@@ -130,6 +136,7 @@ export const SentenceBuilder: React.FC<SentenceBuilderProps> = ({
           onPress={handleSpeak}
           disabled={sentence.length === 0}
           activeOpacity={0.8}
+          accessibilityRole="button"
           accessibilityLabel="Speak sentence">
           <Ionicons
             name={isSpeaking ? 'volume-high' : 'volume-medium'}
@@ -149,6 +156,7 @@ export const SentenceBuilder: React.FC<SentenceBuilderProps> = ({
             ]}
             onPress={() => onAppendText(' ')}
             activeOpacity={0.7}
+            accessibilityRole="button"
             accessibilityLabel="Add space">
             <Text style={[styles.iconBtnText, { color: colors.text }]}>␣ Space</Text>
           </TouchableOpacity>
@@ -162,6 +170,7 @@ export const SentenceBuilder: React.FC<SentenceBuilderProps> = ({
             onPress={onBackspace}
             disabled={sentence.length === 0}
             activeOpacity={0.7}
+            accessibilityRole="button"
             accessibilityLabel="Backspace">
             <Ionicons name="backspace-outline" size={18} color={colors.text} />
           </TouchableOpacity>
@@ -175,6 +184,7 @@ export const SentenceBuilder: React.FC<SentenceBuilderProps> = ({
             onPress={onClear}
             disabled={sentence.length === 0}
             activeOpacity={0.7}
+            accessibilityRole="button"
             accessibilityLabel="Clear sentence">
             <Ionicons name="trash-outline" size={18} color={colors.danger} />
           </TouchableOpacity>
@@ -249,6 +259,7 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 16,
     paddingVertical: 10,
+    minHeight: 44,
     borderRadius: 12,
     shadowColor: '#4F46E5',
     shadowOpacity: 0.3,
@@ -271,6 +282,8 @@ const styles = StyleSheet.create({
   iconBtn: {
     paddingHorizontal: 12,
     paddingVertical: 10,
+    minHeight: 44,
+    minWidth: 44,
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
