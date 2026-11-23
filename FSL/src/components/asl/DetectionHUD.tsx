@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { LayoutChangeEvent, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { Colors, Radius, Type } from '@/constants/theme';
+import { Colors, Radius, Type, FontFamily } from '@/constants/theme';
 
 export type RecognitionMode = 'alphabet' | 'numbers' | 'common';
 
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
   signTileText: {
     color: ink,
     fontSize: 24,
-    fontWeight: '800',
+    fontFamily: FontFamily.bold,
   },
   signTileWord: {
     fontSize: 16,

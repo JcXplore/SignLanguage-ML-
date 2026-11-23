@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Palette, Radius, Type } from '@/constants/theme';
+import { Palette, Radius, Type, FontFamily } from '@/constants/theme';
 import { usePalette } from '@/hooks/use-palette';
 import { ALL_ASL_SIGNS, ASLSign } from '@/data/aslDictionary';
 import { SpeechService } from '@/services/speechService';
@@ -278,6 +278,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 16,
+    fontFamily: FontFamily.regular,
     height: '100%',
     ...Platform.select({ web: { outlineStyle: 'none' } as object }),
   },

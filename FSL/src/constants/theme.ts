@@ -78,18 +78,29 @@ export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
 export type Palette = (typeof Colors)['light'] | (typeof Colors)['dark'];
 
 /**
- * Type scale (system font). Large and heavy at the top because the live caption
+ * Atkinson Hyperlegible: built for low-vision readers, with letters that can't be
+ * mistaken for each other (I / l / 1, O / 0), which matters for fingerspelling.
+ * Custom fonts ignore fontWeight on Android, so each weight is its own family.
+ * Loaded in app/_layout.tsx.
+ */
+export const FontFamily = {
+  regular: 'AtkinsonHyperlegible_400Regular',
+  bold: 'AtkinsonHyperlegible_700Bold',
+} as const;
+
+/**
+ * Type scale. Large and heavy at the top because the live caption
  * has to be read across a table; body never below 15.
  */
 export const Type = {
-  caption: { fontSize: 36, lineHeight: 42, fontWeight: '800', letterSpacing: -0.5 },
-  title: { fontSize: 28, lineHeight: 34, fontWeight: '800', letterSpacing: -0.4 },
-  heading: { fontSize: 18, lineHeight: 24, fontWeight: '700' },
-  body: { fontSize: 16, lineHeight: 22, fontWeight: '400' },
-  bodyStrong: { fontSize: 16, lineHeight: 22, fontWeight: '700' },
-  small: { fontSize: 14, lineHeight: 20, fontWeight: '400' },
-  smallStrong: { fontSize: 14, lineHeight: 20, fontWeight: '700' },
-  meta: { fontSize: 13, lineHeight: 18, fontWeight: '600' },
+  caption: { fontSize: 36, lineHeight: 42, fontFamily: FontFamily.bold, letterSpacing: -0.5 },
+  title: { fontSize: 28, lineHeight: 34, fontFamily: FontFamily.bold, letterSpacing: -0.4 },
+  heading: { fontSize: 18, lineHeight: 24, fontFamily: FontFamily.bold },
+  body: { fontSize: 16, lineHeight: 22, fontFamily: FontFamily.regular },
+  bodyStrong: { fontSize: 16, lineHeight: 22, fontFamily: FontFamily.bold },
+  small: { fontSize: 14, lineHeight: 20, fontFamily: FontFamily.regular },
+  smallStrong: { fontSize: 14, lineHeight: 20, fontFamily: FontFamily.bold },
+  meta: { fontSize: 13, lineHeight: 18, fontFamily: FontFamily.bold },
 } as const;
 
 export const Radius = {
@@ -112,7 +123,7 @@ export const Fonts = Platform.select({
     mono: 'monospace',
   },
   web: {
-    sans: 'var(--font-display)',
+    sans: FontFamily.regular,
     serif: 'var(--font-serif)',
     rounded: 'var(--font-rounded)',
     mono: 'var(--font-mono)',

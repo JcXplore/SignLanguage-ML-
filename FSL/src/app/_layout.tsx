@@ -4,7 +4,12 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
-import { Radius } from '@/constants/theme';
+import {
+  useFonts,
+  AtkinsonHyperlegible_400Regular,
+  AtkinsonHyperlegible_700Bold,
+} from '@expo-google-fonts/atkinson-hyperlegible';
+import { Radius, FontFamily } from '@/constants/theme';
 import { usePalette } from '@/hooks/use-palette';
 
 SplashScreen.preventAutoHideAsync();
@@ -28,15 +33,25 @@ export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const bottomPadding = Math.max(insets.bottom, 8);
 
+  // Keep the splash up until the typeface is ready, so text never jumps fonts.
+  // If loading fails, carry on with the system font rather than blocking the app.
+  const [fontsLoaded, fontError] = useFonts({
+    AtkinsonHyperlegible_400Regular,
+    AtkinsonHyperlegible_700Bold,
+  });
+  const ready = fontsLoaded || fontError !== null;
+
   useEffect(() => {
-    SplashScreen.hideAsync();
-  }, []);
+    if (ready) SplashScreen.hideAsync();
+  }, [ready]);
 
   const tab =
     (focusedIcon: IconName, icon: IconName) =>
     ({ color, focused }: { color: ColorValue; focused: boolean }) => (
       <TabIcon name={focused ? focusedIcon : icon} focused={focused} color={color} />
     );
+
+  if (!ready) return null;
 
   return (
     <Tabs
@@ -54,7 +69,7 @@ export default function TabLayout() {
         tabBarLabelStyle: {
           fontSize: 12,
           lineHeight: 16,
-          fontWeight: '700',
+          fontFamily: FontFamily.bold,
         },
       }}>
       <Tabs.Screen

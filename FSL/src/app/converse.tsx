@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Radius, Type } from '@/constants/theme';
+import { Radius, Type, FontFamily } from '@/constants/theme';
 import { usePalette } from '@/hooks/use-palette';
 import { SpeechService } from '@/services/speechService';
 import { ALL_ASL_SIGNS } from '@/data/aslDictionary';
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
   letterChar: {
     fontSize: 24,
     lineHeight: 30,
-    fontWeight: '800',
+    fontFamily: FontFamily.bold,
   },
   row: {
     flexDirection: 'row',
@@ -293,6 +293,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
     paddingHorizontal: 18,
     fontSize: 16,
+    fontFamily: FontFamily.regular,
     borderWidth: 2,
     ...Platform.select({ web: { outlineStyle: 'none' } as object }),
   },

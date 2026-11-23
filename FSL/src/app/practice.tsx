@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { Radius, Type } from '@/constants/theme';
+import { Radius, Type, FontFamily } from '@/constants/theme';
 import { usePalette } from '@/hooks/use-palette';
 import { ALL_ASL_SIGNS, ASLSign } from '@/data/aslDictionary';
 import { SpeechService } from '@/services/speechService';
@@ -294,7 +294,7 @@ const styles = StyleSheet.create({
   optionText: {
     fontSize: 20,
     lineHeight: 26,
-    fontWeight: '800',
+    fontFamily: FontFamily.bold,
     flexShrink: 1,
   },
   dimmed: {

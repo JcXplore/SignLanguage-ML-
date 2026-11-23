@@ -1,7 +1,7 @@
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Radius, Type } from '@/constants/theme';
+import { Radius, Type, FontFamily } from '@/constants/theme';
 import { usePalette } from '@/hooks/use-palette';
 import { SpeechService } from '@/services/speechService';
 
@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
   sentenceText: {
     fontSize: 24,
     lineHeight: 30,
-    fontWeight: '800',
+    fontFamily: FontFamily.bold,
     letterSpacing: 0.5,
   },
   controls: {
