@@ -4,7 +4,8 @@ import type { StyleProp, ViewStyle } from 'react-native';
 export type HandTrackerFrame = {
   t: number;
   hands: { label: string; points: number[][] }[];
-  pose: { x: number; y: number; z: number; visibility: number }[] | null;
+  /** Left out when no body was found. */
+  pose?: { x: number; y: number; z: number; visibility: number }[];
 };
 
 export type HandTrackerError = {

@@ -50,3 +50,7 @@ test('an unknown handedness label is treated as Right, like the web path', () =>
   assert.equal(frame.v[126], 1);
   assert.equal(frame.v[127], 0);
 });
+
+test('a frame without a pose key (no body found) is noPose', () => {
+  assert.equal(convertNativeFrame({ t: 0, hands: [hand('Right')] }).status, 'noPose');
+});

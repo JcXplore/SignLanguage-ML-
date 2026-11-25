@@ -13,7 +13,8 @@ export interface NativeFrame {
   /** Milliseconds, increasing. */
   t: number;
   hands: { label: string; points: number[][] }[];
-  pose: PoseLandmark[] | null;
+  /** Missing or null when no body was found. */
+  pose?: PoseLandmark[] | null;
 }
 
 export function convertNativeFrame(nf: NativeFrame): { frame: FeatureFrame; status: FrameStatus } {

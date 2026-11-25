@@ -155,7 +155,12 @@ class HandTrackerView(context: Context, appContext: AppContext) : ExpoView(conte
           "visibility" to (it.visibility().orElse(1f)).toDouble()
         )
       }
-      val payload = mapOf("t" to timestamp.toDouble(), "hands" to handList, "pose" to poseList)
+      // events can't carry null values: leave "pose" out when no body was found
+      val payload = buildMap<String, Any> {
+        put("t", timestamp.toDouble())
+        put("hands", handList)
+        if (poseList != null) put("pose", poseList)
+      }
       post { onFrame(payload) }
     } catch (e: Exception) {
       Log.w(TAG, "Frame skipped", e)
