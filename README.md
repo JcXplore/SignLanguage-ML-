@@ -56,7 +56,7 @@ camera ─► hand + body points ─► find where a sign starts and ends ─►
 2. **Segmentation.** A sign starts when a hand moves and ends after about 300 ms of
    stillness. Each sign is resampled to 32 frames.
 3. **Classification.** A small 1-D convolutional network (600 KB) scores the 105 signs.
-   It runs in about 150 lines of plain TypeScript written for this app, so the same
+   It runs in about 120 lines of plain TypeScript written for this app, so the same
    code runs in the browser and on the phone with no ML library. A test checks it
    matches Keras's output to within 0.0001.
 4. **Decision.** A sign is only added when the model is confident and clearly ahead of
