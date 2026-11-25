@@ -1,0 +1,43 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'expo.modules.handtracker'
+version = '0.1.0'
+
+// The MediaPipe models ship once in the repo (public/mediapipe, also used by the web build);
+// copy just the .task files into this module's assets at build time.
+def generatedAssets = layout.buildDirectory.dir("generated/handtracker-assets")
+def copyMediapipeModels = tasks.register("copyMediapipeModels", Copy) {
+  from("${projectDir}/../../../public/mediapipe") { include "*.task" }
+  into generatedAssets
+}
+
+android {
+  namespace "expo.modules.handtracker"
+  defaultConfig {
+    versionCode 1
+    versionName "0.1.0"
+  }
+  sourceSets {
+    main.assets.srcDirs += generatedAssets.get().asFile
+  }
+  androidResources {
+    noCompress += "task"
+  }
+  lintOptions {
+    abortOnError false
+  }
+}
+
+preBuild.dependsOn(copyMediapipeModels)
+
+dependencies {
+  def camerax = "1.7.0"
+  implementation "androidx.camera:camera-core:$camerax"
+  implementation "androidx.camera:camera-camera2:$camerax"
+  implementation "androidx.camera:camera-lifecycle:$camerax"
+  implementation "androidx.camera:camera-view:$camerax"
+  implementation "com.google.mediapipe:tasks-vision:1.2.3"
+}

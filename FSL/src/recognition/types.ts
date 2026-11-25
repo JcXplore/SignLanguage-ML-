@@ -20,10 +20,18 @@ export interface Guess {
 /** Status of one camera frame, from the hand-point source. */
 export type FrameStatus = 'ok' | 'noPose' | 'noHands';
 
-/** Turns camera frames into feature frames. Web: MediaPipe in the browser; native: milestone 3. */
+/** A stream of frames from a native camera view (Android: modules/hand-tracker). */
+export interface FrameFeed<T = unknown> {
+  subscribe(listener: (frame: T) => void): () => void;
+}
+
+/** What the camera preview hands to recognition: the <video> element on web, a frame feed on Android. */
+export type CameraHandle = HTMLVideoElement | FrameFeed;
+
+/** Turns camera frames into feature frames. Web: MediaPipe in the browser; Android: the native module. */
 export interface HandPointSource {
   /** Rejects with Error('unavailable') where not supported, or the camera's own error. */
-  start(video: HTMLVideoElement | null, onFrame: (f: FeatureFrame, status: FrameStatus) => void): Promise<void>;
+  start(camera: CameraHandle | null, onFrame: (f: FeatureFrame, status: FrameStatus) => void): Promise<void>;
   stop(): void;
 }
 

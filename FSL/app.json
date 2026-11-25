@@ -8,7 +8,7 @@
     "scheme": "fsl",
     "userInterfaceStyle": "automatic",
     "android": {
-      "package": "com.signbridge.asl",
+      "package": "com.signbridge.fsl",
       "adaptiveIcon": {
         "backgroundColor": "#1F3A93",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

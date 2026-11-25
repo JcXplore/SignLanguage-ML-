@@ -68,7 +68,8 @@ export function createHandPointSource(): HandPointSource {
   let raf = 0;
 
   return {
-    async start(video, onFrame) {
+    async start(camera, onFrame) {
+      const video = camera instanceof HTMLVideoElement ? camera : null;
       if (!video) throw Object.assign(new Error('No camera video'), { name: 'NotFoundError' });
       const { hands, pose } = await loadLandmarkers();
       running = true;

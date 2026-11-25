@@ -7,11 +7,12 @@
 import React, { useEffect, useRef } from 'react';
 import type { StyleProp, ViewStyle } from 'react-native';
 import { View } from 'react-native';
+import type { CameraHandle } from '@/recognition/types';
 
 export interface WebCameraViewProps {
   facing: 'front' | 'back';
   style?: StyleProp<ViewStyle>;
-  onVideo?: (video: HTMLVideoElement | null) => void;
+  onVideo?: (camera: CameraHandle | null) => void;
   onError?: (error: Error) => void;
 }
 

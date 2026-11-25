@@ -5,7 +5,7 @@
  */
 import { decide, type Decision } from './decide.ts';
 import { createSegmenter, resampleTo32 } from './segmenter.ts';
-import type { FrameStatus, HandPointSource, Hint, SignClassifier, UnavailableReason } from './types.ts';
+import type { CameraHandle, FrameStatus, HandPointSource, Hint, SignClassifier, UnavailableReason } from './types.ts';
 
 export type RecognitionState = 'loading' | 'ready' | 'unavailable';
 
@@ -32,7 +32,7 @@ function reasonFor(err: unknown): UnavailableReason {
 export async function startRecognition(
   source: HandPointSource,
   classifier: SignClassifier,
-  video: HTMLVideoElement | null,
+  camera: CameraHandle | null,
   cb: RecognitionCallbacks
 ): Promise<{ stop(): void }> {
   const stop = () => source.stop();
@@ -74,7 +74,7 @@ export async function startRecognition(
   };
 
   try {
-    await source.start(video, onFrame);
+    await source.start(camera, onFrame);
   } catch (err) {
     cb.onState('unavailable', reasonFor(err));
     return { stop };

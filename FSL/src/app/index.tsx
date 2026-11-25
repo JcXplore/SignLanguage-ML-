@@ -11,6 +11,7 @@ import { SentenceBuilder } from '@/components/asl/SentenceBuilder';
 import { WebCameraView } from '@/components/asl/WebCameraView';
 import { useSignRecognition } from '@/recognition/useSignRecognition';
 import { screenStatus } from '@/recognition/screenStatus';
+import type { CameraHandle } from '@/recognition/types';
 import { SpeechService } from '@/services/speechService';
 
 /** Letters join into a word; whole-word signs get a space before them. */
@@ -27,7 +28,7 @@ export default function TranslateScreen() {
   const [hapticEnabled, setHapticEnabled] = useState(true);
   // Words is the only trained mode so far (FSL-105); letters and numbers come next.
   const [mode, setMode] = useState<RecognitionMode>('common');
-  const [video, setVideo] = useState<HTMLVideoElement | null>(null);
+  const [video, setVideo] = useState<CameraHandle | null>(null);
   const [shown, setShown] = useState<HUDStatus | null>(null);
   const [cameraError, setCameraError] = useState(false);
   const [sentence, setSentence] = useState('');
